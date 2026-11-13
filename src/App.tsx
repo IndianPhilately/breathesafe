@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
+  CITY_POPULATION_LICENSE,
+  CITY_POPULATION_MINIMUM,
+  CITY_POPULATION_SOURCE,
+  CITY_POPULATION_YEAR,
   cityDashboardData,
+  findNearestCity,
   type CityDashboardData,
 } from './data/cities'
 import {
@@ -18,6 +23,8 @@ import {
   type CurrentAirQuality,
 } from './services/openMeteoAirQuality'
 import './App.css'
+
+const populationFormatter = new Intl.NumberFormat('en-IN')
 
 type DashboardTab = 'weather' | 'aqi'
 type WeatherLoadState =
@@ -42,6 +49,15 @@ const initialCity = getInitialCity()
 function App() {
   const [selectedCity, setSelectedCity] =
     useState<CityDashboardData>(initialCity)
+  const [citySearch, setCitySearch] = useState(
+    `${initialCity.city}, ${initialCity.state}`,
+  )
+  const [isCityListOpen, setIsCityListOpen] = useState(false)
+  const [activeCityIndex, setActiveCityIndex] = useState(-1)
+  const [locationState, setLocationState] = useState<{
+    status: 'idle' | 'loading' | 'success' | 'error'
+    message: string
+  }>({ status: 'idle', message: '' })
   const [activeTab, setActiveTab] = useState<DashboardTab>('weather')
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [airQualityRefreshVersion, setAirQualityRefreshVersion] = useState(0)
@@ -57,6 +73,7 @@ function App() {
     null,
     null,
   ])
+  const locationRequestId = useRef(0)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -212,6 +229,126 @@ function App() {
       : null
   const selectedWeatherState =
     weatherState.cityId === selectedCity.id ? weatherState : null
+  const normalizedSearch = citySearch.trim().toLocaleLowerCase()
+  const matchingCities = cityDashboardData
+    .filter((city) =>
+      [city.city, city.state, ...(city.searchAliases ?? [])].some((value) =>
+        value.toLocaleLowerCase().includes(normalizedSearch),
+      ),
+    )
+    .sort((left, right) => {
+      const leftNameStartsWithQuery = [
+        left.city,
+        ...(left.searchAliases ?? []),
+      ].some((value) =>
+        value.toLocaleLowerCase().startsWith(normalizedSearch),
+      )
+      const rightNameStartsWithQuery = [
+        right.city,
+        ...(right.searchAliases ?? []),
+      ].some((value) =>
+        value.toLocaleLowerCase().startsWith(normalizedSearch),
+      )
+
+      if (leftNameStartsWithQuery !== rightNameStartsWithQuery) {
+        return leftNameStartsWithQuery ? -1 : 1
+      }
+
+      return left.city.localeCompare(right.city)
+    })
+    .slice(0, 8)
+
+  function selectCity(city: CityDashboardData) {
+    locationRequestId.current += 1
+    setSelectedCity(city)
+    setCitySearch(`${city.city}, ${city.state}`)
+    setIsCityListOpen(false)
+    setActiveCityIndex(-1)
+    setLocationState({ status: 'idle', message: '' })
+    setWeatherState({ cityId: city.id, status: 'loading' })
+    setAirQualityState({ cityId: city.id, status: 'loading' })
+  }
+
+  function handleCitySearchKeyDown(
+    event: KeyboardEvent<HTMLInputElement>,
+  ) {
+    if (event.key === 'ArrowDown' && matchingCities.length > 0) {
+      event.preventDefault()
+      setIsCityListOpen(true)
+      setActiveCityIndex((index) =>
+        index < 0 ? 0 : (index + 1) % matchingCities.length,
+      )
+    } else if (event.key === 'ArrowUp' && matchingCities.length > 0) {
+      event.preventDefault()
+      setIsCityListOpen(true)
+      setActiveCityIndex(
+        (index) =>
+          index < 0
+            ? matchingCities.length - 1
+            : (index - 1 + matchingCities.length) % matchingCities.length,
+      )
+    } else if (
+      event.key === 'Enter' &&
+      isCityListOpen &&
+      matchingCities[activeCityIndex] !== undefined
+    ) {
+      event.preventDefault()
+      selectCity(matchingCities[activeCityIndex])
+    } else if (
+      event.key === 'Enter' &&
+      isCityListOpen &&
+      matchingCities.length > 0
+    ) {
+      event.preventDefault()
+      selectCity(matchingCities[0])
+    } else if (event.key === 'Escape') {
+      setIsCityListOpen(false)
+      setCitySearch(`${selectedCity.city}, ${selectedCity.state}`)
+    }
+  }
+
+  function requestDeviceLocation() {
+    setIsCityListOpen(false)
+    const requestId = ++locationRequestId.current
+
+    if (!navigator.geolocation) {
+      setLocationState({
+        status: 'error',
+        message: 'Location is not available in this browser.',
+      })
+      return
+    }
+
+    setLocationState({
+      status: 'loading',
+      message: 'Finding the nearest supported city…',
+    })
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (requestId !== locationRequestId.current) return
+        const city = findNearestCity(
+          position.coords.latitude,
+          position.coords.longitude,
+        )
+        selectCity(city)
+        setLocationState({
+          status: 'success',
+          message: `Showing ${city.city}, ${city.state}, the nearest supported city.`,
+        })
+      },
+      (error) => {
+        if (requestId !== locationRequestId.current) return
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? 'Location permission was denied. Choose a city or allow location access in your browser.'
+            : error.code === error.POSITION_UNAVAILABLE
+              ? 'Your device could not determine your location. Choose a city and try again later.'
+              : 'Location lookup timed out. Check your connection or choose a city.'
+        setLocationState({ status: 'error', message })
+      },
+      { enableHighAccuracy: false, maximumAge: 300_000, timeout: 15_000 },
+    )
+  }
 
   return (
     <div className="dashboard">
@@ -235,27 +372,165 @@ function App() {
         </a>
 
         <div className="city-picker">
-          <label htmlFor="city-select">City</label>
-          <select
-            id="city-select"
-            value={selectedCity.id}
-            onChange={(event) => {
-              const city = cityDashboardData.find(
-                (item) => item.id === event.target.value,
-              )
-              if (city) {
-                setSelectedCity(city)
-                setWeatherState({ cityId: city.id, status: 'loading' })
-                setAirQualityState({ cityId: city.id, status: 'loading' })
+          <label className="city-search-label" htmlFor="city-search">
+            Search cities
+          </label>
+          <div className="city-search-wrap">
+            <div className="city-search-box">
+              <span className="city-search-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="10.8" cy="10.8" r="6.8" />
+                  <path d="m16 16 4.2 4.2" />
+                </svg>
+              </span>
+              <input
+                id="city-search"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={isCityListOpen}
+                aria-controls="city-results"
+                aria-activedescendant={
+                  isCityListOpen && matchingCities[activeCityIndex]
+                    ? `city-option-${matchingCities[activeCityIndex].id}`
+                    : undefined
+                }
+                autoComplete="off"
+                placeholder="Search a city"
+                value={citySearch}
+                onChange={(event) => {
+                  locationRequestId.current += 1
+                  setCitySearch(event.target.value)
+                  setActiveCityIndex(-1)
+                  setIsCityListOpen(true)
+                  setLocationState({ status: 'idle', message: '' })
+                }}
+                onFocus={() => setIsCityListOpen(true)}
+                onBlur={() => setIsCityListOpen(false)}
+                onKeyDown={handleCitySearchKeyDown}
+              />
+              {citySearch && (
+                <button
+                  className="city-search-clear"
+                  type="button"
+                  aria-label="Clear city search"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    locationRequestId.current += 1
+                    setCitySearch('')
+                    setActiveCityIndex(-1)
+                    setIsCityListOpen(true)
+                    setLocationState({ status: 'idle', message: '' })
+                  }}
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              )}
+              <button
+                className="city-location-button"
+                type="button"
+                aria-label="Use my location"
+                title="Use my location"
+                disabled={locationState.status === 'loading'}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={requestDeviceLocation}
+              >
+                {locationState.status === 'loading' ? (
+                  <span className="location-spinner" aria-hidden="true" />
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="8" />
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 1.8v3M12 19.2v3M1.8 12h3M19.2 12h3" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            <div
+              className={
+                isCityListOpen
+                  ? 'city-results-panel open'
+                  : 'city-results-panel'
               }
-            }}
+              aria-hidden={!isCityListOpen}
+            >
+              <p className="city-results-heading">Cities</p>
+              <p className="city-results-subheading">
+                {cityDashboardData.length} cities · {CITY_POPULATION_YEAR}{' '}
+                population · {populationFormatter.format(CITY_POPULATION_MINIMUM)}+
+              </p>
+              <ul
+                className="city-results"
+                id="city-results"
+                role="listbox"
+                aria-label="Matching cities"
+              >
+                {matchingCities.length > 0 ? (
+                  matchingCities.map((city, index) => (
+                    <li
+                      className={
+                        index === activeCityIndex
+                          ? 'city-result active'
+                          : 'city-result'
+                      }
+                      id={`city-option-${city.id}`}
+                      key={city.id}
+                      role="option"
+                      aria-selected={city.id === selectedCity.id}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setActiveCityIndex(index)}
+                      onClick={() => selectCity(city)}
+                    >
+                      <span className="city-result-name">
+                        <span className="city-result-pin" aria-hidden="true">
+                          <svg viewBox="0 0 24 16" fill="none">
+                            <path fill="#FF9933" d="M1 1h22v4.67H1z" />
+                            <path fill="white" d="M1 5.67h22v4.66H1z" />
+                            <path fill="#138808" d="M1 10.33h22V15H1z" />
+                            <circle
+                              cx="12"
+                              cy="8"
+                              r="1.65"
+                              stroke="#1A4A9F"
+                              strokeWidth=".7"
+                            />
+                            <path
+                              d="M12 6.5v3M10.5 8h3"
+                              stroke="#1A4A9F"
+                              strokeWidth=".45"
+                            />
+                          </svg>
+                        </span>
+                        <span>
+                          {city.city}, {city.state}
+                        </span>
+                        <span className="city-result-population">
+                          {populationFormatter.format(city.population)}
+                          <small>{CITY_POPULATION_YEAR} population</small>
+                        </span>
+                      </span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="city-no-results" role="option" aria-disabled="true">
+                    No matching cities found.
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+          <p
+            className={`city-picker-message ${locationState.status}`}
+            role={
+              locationState.status === 'idle'
+                ? undefined
+                : locationState.status === 'error'
+                  ? 'alert'
+                  : 'status'
+            }
+            aria-hidden={locationState.status === 'idle'}
           >
-            {cityDashboardData.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.city}, {city.state}
-              </option>
-            ))}
-          </select>
+            {locationState.message}
+          </p>
         </div>
       </header>
 
@@ -269,6 +544,10 @@ function App() {
           </h1>
           <p className="location-subtitle">
             A simple snapshot of the weather and air around your city.
+          </p>
+          <p className="city-population">
+            {CITY_POPULATION_YEAR} Census population:{' '}
+            <strong>{populationFormatter.format(selectedCity.population)}</strong>
           </p>
         </div>
 
@@ -613,6 +892,25 @@ function App() {
           Weather and air-quality conditions are model-based and may differ
           from local observations. Open-Meteo's US AQI is not CPCB India AQI or
           a reading from a local monitoring station.
+        </p>
+        <p className="city-data-attribution">
+          City list, 2011 population figures, and coordinates adapted from{' '}
+          <a
+            href={CITY_POPULATION_SOURCE}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Wikipedia contributors
+          </a>{' '}
+          under{' '}
+          <a
+            href={CITY_POPULATION_LICENSE}
+            target="_blank"
+            rel="noreferrer"
+          >
+            CC BY-SA 4.0
+          </a>
+          .
         </p>
       </main>
       <footer className="page-footer">
