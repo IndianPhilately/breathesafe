@@ -1,17 +1,38 @@
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import {
   cityDashboardData,
-  getAqiCategory,
   type CityDashboardData,
 } from './data/cities'
+import {
+  fetchCurrentWeather,
+  formatObservationTime,
+  getWeatherCondition,
+  getWeatherIcon,
+  getWindDirection,
+  toObservationDateTime,
+  type CurrentWeather,
+} from './services/openMeteo'
+import {
+  fetchCurrentAirQuality,
+  getUsAqiCategory,
+  type CurrentAirQuality,
+} from './services/openMeteoAirQuality'
 import './App.css'
 
 type DashboardTab = 'weather' | 'aqi'
+type WeatherLoadState =
+  | { cityId: string; status: 'loading' }
+  | { cityId: string; status: 'success'; weather: CurrentWeather }
+  | { cityId: string; status: 'error'; message: string }
+type AirQualityLoadState =
+  | { cityId: string; status: 'loading' }
+  | { cityId: string; status: 'success'; airQuality: CurrentAirQuality }
+  | { cityId: string; status: 'error'; message: string }
 
 function getInitialCity(): CityDashboardData {
   const city = cityDashboardData.find((item) => item.id === 'pune')
   if (!city) {
-    throw new Error('The Pune demo city is missing from the city data.')
+    throw new Error('The Pune city is missing from the city data.')
   }
   return city
 }
@@ -22,10 +43,138 @@ function App() {
   const [selectedCity, setSelectedCity] =
     useState<CityDashboardData>(initialCity)
   const [activeTab, setActiveTab] = useState<DashboardTab>('weather')
+  const [refreshVersion, setRefreshVersion] = useState(0)
+  const [airQualityRefreshVersion, setAirQualityRefreshVersion] = useState(0)
+  const [weatherState, setWeatherState] = useState<WeatherLoadState>({
+    cityId: initialCity.id,
+    status: 'loading',
+  })
+  const [airQualityState, setAirQualityState] = useState<AirQualityLoadState>({
+    cityId: initialCity.id,
+    status: 'loading',
+  })
   const tabRefs = useRef<[HTMLButtonElement | null, HTMLButtonElement | null]>([
     null,
     null,
   ])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    let active = true
+    let timedOut = false
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, 15_000)
+
+    void Promise.resolve()
+      .then(() => {
+        if (!active) return null
+        return fetchCurrentWeather(
+          selectedCity.latitude,
+          selectedCity.longitude,
+          controller.signal,
+        )
+      })
+      .then((weather) => {
+        if (!weather) return
+        if (active) {
+          setWeatherState({
+            cityId: selectedCity.id,
+            status: 'success',
+            weather,
+          })
+        }
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setWeatherState({
+          cityId: selectedCity.id,
+          status: 'error',
+          message: timedOut
+            ? 'The weather request timed out. Please try again.'
+            : error instanceof Error
+              ? error.message
+              : 'Unable to load current weather. Please try again.',
+        })
+      })
+      .finally(() => window.clearTimeout(timeoutId))
+
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [
+    refreshVersion,
+    selectedCity.id,
+    selectedCity.latitude,
+    selectedCity.longitude,
+  ])
+
+  useEffect(() => {
+    if (activeTab !== 'aqi') return
+
+    const controller = new AbortController()
+    let active = true
+    let timedOut = false
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, 15_000)
+
+    void Promise.resolve()
+      .then(() => {
+        if (!active) return null
+        return fetchCurrentAirQuality(
+          selectedCity.latitude,
+          selectedCity.longitude,
+          controller.signal,
+        )
+      })
+      .then((airQuality) => {
+        if (!airQuality) return
+        if (active) {
+          setAirQualityState({
+            cityId: selectedCity.id,
+            status: 'success',
+            airQuality,
+          })
+        }
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setAirQualityState({
+          cityId: selectedCity.id,
+          status: 'error',
+          message: timedOut
+            ? 'The air-quality request timed out. Please try again.'
+            : error instanceof Error
+              ? error.message
+              : 'Unable to load current air quality. Please try again.',
+        })
+      })
+      .finally(() => window.clearTimeout(timeoutId))
+
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [
+    activeTab,
+    airQualityRefreshVersion,
+    selectedCity.id,
+    selectedCity.latitude,
+    selectedCity.longitude,
+  ])
+
+  function selectTab(tab: DashboardTab) {
+    if (tab === 'aqi' && activeTab !== 'aqi') {
+      setAirQualityState({ cityId: selectedCity.id, status: 'loading' })
+    }
+    setActiveTab(tab)
+  }
 
   function handleTabKeyDown(
     event: KeyboardEvent<HTMLButtonElement>,
@@ -51,11 +200,18 @@ function App() {
     }
 
     event.preventDefault()
-    setActiveTab(nextIndex === 0 ? 'weather' : 'aqi')
+    selectTab(nextIndex === 0 ? 'weather' : 'aqi')
     tabRefs.current[nextIndex]?.focus()
   }
 
-  const aqiCategory = getAqiCategory(selectedCity.airQuality.aqi)
+  const selectedAirQualityState =
+    airQualityState.cityId === selectedCity.id ? airQualityState : null
+  const aqiCategory =
+    selectedAirQualityState?.status === 'success'
+      ? getUsAqiCategory(Math.round(selectedAirQualityState.airQuality.usAqi))
+      : null
+  const selectedWeatherState =
+    weatherState.cityId === selectedCity.id ? weatherState : null
 
   return (
     <div className="dashboard">
@@ -87,7 +243,11 @@ function App() {
               const city = cityDashboardData.find(
                 (item) => item.id === event.target.value,
               )
-              if (city) setSelectedCity(city)
+              if (city) {
+                setSelectedCity(city)
+                setWeatherState({ cityId: city.id, status: 'loading' })
+                setAirQualityState({ cityId: city.id, status: 'loading' })
+              }
             }}
           >
             {cityDashboardData.map((city) => (
@@ -112,13 +272,16 @@ function App() {
           </p>
         </div>
 
-        <div className="demo-notice" role="note" aria-label="Demo data notice">
-          <span className="demo-dot" aria-hidden="true" />
+        <div
+          className="data-notice"
+          role="note"
+          aria-label="Air quality data limitations"
+        >
+          <span className="data-notice-dot" aria-hidden="true" />
           <span>
-            <strong>Demo data · Not live</strong>
+            <strong>Air quality · Model-based estimates</strong>
             <span className="notice-detail">
-              Illustrative sample values only — no live weather or AQI source is
-              connected.
+              US AQI is not CPCB India AQI or a local monitoring-station reading.
             </span>
           </span>
         </div>
@@ -136,7 +299,7 @@ function App() {
               aria-selected={activeTab === 'weather'}
               aria-controls="weather-panel"
               tabIndex={activeTab === 'weather' ? 0 : -1}
-              onClick={() => setActiveTab('weather')}
+              onClick={() => selectTab('weather')}
               onKeyDown={(event) => handleTabKeyDown(event, 0)}
             >
               <span className="tab-icon weather-tab-icon" aria-hidden="true">
@@ -155,7 +318,7 @@ function App() {
               aria-selected={activeTab === 'aqi'}
               aria-controls="aqi-panel"
               tabIndex={activeTab === 'aqi' ? 0 : -1}
-              onClick={() => setActiveTab('aqi')}
+              onClick={() => selectTab('aqi')}
               onKeyDown={(event) => handleTabKeyDown(event, 1)}
             >
               <span className="tab-icon aqi-tab-icon" aria-hidden="true">
@@ -175,54 +338,142 @@ function App() {
           >
             <div className="weather-overview">
               <div>
-                <p className="panel-kicker">Weather · Sample</p>
-                <p
-                  className="temperature"
-                  aria-label={`${selectedCity.weather.temperatureC} degrees Celsius (demo)`}
-                >
-                  {selectedCity.weather.temperatureC}
-                  <span>°C</span>
-                </p>
-                <p className="weather-condition">
-                  {selectedCity.weather.condition}
-                </p>
-                <p className="city-caption">
-                  {selectedCity.city}, {selectedCity.state}
-                </p>
+                <p className="panel-kicker">Current weather · Model-based</p>
+                {selectedWeatherState?.status === 'success' ? (
+                  <>
+                    <p
+                      className="temperature"
+                      aria-label={`${Math.round(selectedWeatherState.weather.temperatureC)} degrees Celsius`}
+                    >
+                      {Math.round(selectedWeatherState.weather.temperatureC)}
+                      <span>°C</span>
+                    </p>
+                    <p className="weather-condition">
+                      {getWeatherCondition(
+                        selectedWeatherState.weather.weatherCode,
+                      )}
+                    </p>
+                    <p className="city-caption">
+                      {selectedCity.city}, {selectedCity.state}
+                    </p>
+                  </>
+                ) : null}
               </div>
-              <div className="weather-illustration" aria-hidden="true">
-                <span className="sun" />
-                <span className="cloud cloud-back" />
-                <span className="cloud cloud-front" />
+              <div
+                className="weather-illustration"
+                aria-hidden="true"
+              >
+                {selectedWeatherState?.status === 'success' ? (
+                  <span className="weather-symbol">
+                    {getWeatherIcon(selectedWeatherState.weather.weatherCode)}
+                  </span>
+                ) : null}
               </div>
             </div>
 
-            <div className="detail-grid">
-              <article className="detail-card">
-                <span className="detail-icon humidity-icon" aria-hidden="true">
-                  ◌
-                </span>
-                <div>
-                  <p className="detail-label">Humidity</p>
-                  <p className="detail-value">
-                    {selectedCity.weather.humidityPercent}
-                    <span>%</span>
-                  </p>
+            {selectedWeatherState?.status === 'loading' ? (
+              <div className="weather-state" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                Loading current weather for {selectedCity.city}…
+              </div>
+            ) : null}
+
+            {selectedWeatherState?.status === 'error' ? (
+              <div className="weather-error" role="alert">
+                <p>{selectedWeatherState.message}</p>
+                <button
+                  className="retry-button"
+                  type="button"
+                  onClick={() => {
+                    setWeatherState({
+                      cityId: selectedCity.id,
+                      status: 'loading',
+                    })
+                    setRefreshVersion((version) => version + 1)
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : null}
+
+            {selectedWeatherState?.status === 'success' ? (
+              <>
+                <div className="detail-grid">
+                  <article className="detail-card">
+                    <span
+                      className="detail-icon humidity-icon"
+                      aria-hidden="true"
+                    >
+                      ◌
+                    </span>
+                    <div>
+                      <p className="detail-label">Relative humidity</p>
+                      <p className="detail-value">
+                        {selectedWeatherState.weather.relativeHumidity}
+                        <span>%</span>
+                      </p>
+                    </div>
+                  </article>
+                  <article className="detail-card">
+                    <span className="detail-icon wind-icon" aria-hidden="true">
+                      ≋
+                    </span>
+                    <div>
+                      <p className="detail-label">Wind</p>
+                      <p className="detail-value">
+                        {Math.round(selectedWeatherState.weather.windSpeedKph)}
+                        <span> km/h</span>
+                      </p>
+                      <p className="detail-caption">
+                        {getWindDirection(
+                          selectedWeatherState.weather.windDirectionDegrees,
+                        )}{' '}
+                        direction
+                      </p>
+                    </div>
+                  </article>
                 </div>
-              </article>
-              <article className="detail-card">
-                <span className="detail-icon wind-icon" aria-hidden="true">
-                  ≋
-                </span>
-                <div>
-                  <p className="detail-label">Wind</p>
-                  <p className="detail-value">
-                    {selectedCity.weather.windKph}
-                    <span> km/h</span>
+
+                <div className="weather-meta">
+                  <p className="observation-time">
+                    Model time{' '}
+                    <time
+                      dateTime={toObservationDateTime(
+                        selectedWeatherState.weather.observedAt,
+                      )}
+                    >
+                      {formatObservationTime(
+                        selectedWeatherState.weather.observedAt,
+                      )}{' '}
+                      IST
+                    </time>
                   </p>
+                  <a
+                    className="weather-attribution"
+                    href="https://open-meteo.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Weather data by Open-Meteo.com
+                  </a>
+                  <button
+                    className="refresh-button"
+                    type="button"
+                    onClick={() => {
+                      setWeatherState({
+                        cityId: selectedCity.id,
+                        status: 'loading',
+                      })
+                      setRefreshVersion((version) => version + 1)
+                    }}
+                    aria-label={`Refresh weather for ${selectedCity.city}`}
+                  >
+                    Refresh weather
+                  </button>
                 </div>
-              </article>
-            </div>
+              </>
+            ) : null}
           </div>
 
           <div
@@ -235,50 +486,133 @@ function App() {
           >
             <div
               className="aqi-overview"
-              data-aqi-category={aqiCategory.toLowerCase().replace(' ', '-')}
+              data-aqi-category={aqiCategory?.toLowerCase().replace(/\s+/g, '-')}
             >
               <div>
-                <p className="panel-kicker">Air quality index · Sample</p>
-                <p className="aqi-value">{selectedCity.airQuality.aqi}</p>
-                <p className="aqi-category">{aqiCategory}</p>
-                <p className="city-caption">
-                  Illustrative India AQI scale value
-                </p>
+                <p className="panel-kicker">Current air quality · US AQI</p>
+                {selectedAirQualityState?.status === 'success' ? (
+                  <>
+                    <p className="aqi-value">
+                      {Math.round(selectedAirQualityState.airQuality.usAqi)}
+                    </p>
+                    <p className="aqi-category">{aqiCategory}</p>
+                    <p className="city-caption">United States AQI scale</p>
+                  </>
+                ) : null}
               </div>
               <div className="aqi-gauge" aria-hidden="true">
-                <span>AQI</span>
-                <span>sample level</span>
+                <span>US AQI</span>
+                <span>model estimate</span>
               </div>
             </div>
 
-            <div className="detail-grid">
-              <article className="detail-card pollutant-card">
-                <span className="pollutant-tag">PM2.5</span>
-                <div>
-                  <p className="detail-label">Fine particles · Sample</p>
-                  <p className="detail-value">
-                    {selectedCity.airQuality.pm25}
-                    <span> µg/m³</span>
-                  </p>
+            {selectedAirQualityState?.status === 'loading' ? (
+              <div className="aqi-state" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                Loading current air quality for {selectedCity.city}…
+              </div>
+            ) : null}
+
+            {selectedAirQualityState?.status === 'error' ? (
+              <div className="aqi-error" role="alert">
+                <p>{selectedAirQualityState.message}</p>
+                <button
+                  className="retry-button"
+                  type="button"
+                  onClick={() => {
+                    setAirQualityState({
+                      cityId: selectedCity.id,
+                      status: 'loading',
+                    })
+                    setAirQualityRefreshVersion((version) => version + 1)
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : null}
+
+            {selectedAirQualityState?.status === 'success' ? (
+              <>
+                <div className="detail-grid">
+                  <article className="detail-card pollutant-card">
+                    <span className="pollutant-tag">PM2.5</span>
+                    <div>
+                      <p className="detail-label">Fine particles · Model estimate</p>
+                      <p className="detail-value">
+                        {selectedAirQualityState.airQuality.pm25.toFixed(1)}
+                        <span> µg/m³</span>
+                      </p>
+                    </div>
+                  </article>
+                  <article className="detail-card pollutant-card">
+                    <span className="pollutant-tag">PM10</span>
+                    <div>
+                      <p className="detail-label">
+                        Inhalable particles · Model estimate
+                      </p>
+                      <p className="detail-value">
+                        {selectedAirQualityState.airQuality.pm10.toFixed(1)}
+                        <span> µg/m³</span>
+                      </p>
+                    </div>
+                  </article>
                 </div>
-              </article>
-              <article className="detail-card pollutant-card">
-                <span className="pollutant-tag">PM10</span>
-                <div>
-                  <p className="detail-label">Inhalable particles · Sample</p>
-                  <p className="detail-value">
-                    {selectedCity.airQuality.pm10}
-                    <span> µg/m³</span>
+
+                <div className="weather-meta">
+                  <p className="observation-time">
+                    Model time{' '}
+                    <time
+                      dateTime={toObservationDateTime(
+                        selectedAirQualityState.airQuality.modelTime,
+                      )}
+                    >
+                      {formatObservationTime(
+                        selectedAirQualityState.airQuality.modelTime,
+                      )}{' '}
+                      IST
+                    </time>
                   </p>
+                  <a
+                    className="weather-attribution"
+                    href="https://open-meteo.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Air quality data by Open-Meteo
+                  </a>
+                  <a
+                    className="weather-attribution"
+                    href="https://open-meteo.com/en/licence"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    CC BY 4.0 licence
+                  </a>
+                  <button
+                    className="refresh-button"
+                    type="button"
+                    onClick={() => {
+                      setAirQualityState({
+                        cityId: selectedCity.id,
+                        status: 'loading',
+                      })
+                      setAirQualityRefreshVersion((version) => version + 1)
+                    }}
+                    aria-label={`Refresh air quality for ${selectedCity.city}`}
+                  >
+                    Refresh air quality
+                  </button>
                 </div>
-              </article>
-            </div>
+              </>
+            ) : null}
           </div>
         </section>
 
         <p className="data-footnote">
-          These values are for demonstration only. They do not represent current
-          conditions in {selectedCity.city}.
+          Weather and air-quality conditions are model-based and may differ
+          from local observations. Open-Meteo's US AQI is not CPCB India AQI or
+          a reading from a local monitoring station.
         </p>
       </main>
       <footer className="page-footer">

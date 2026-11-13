@@ -130,7 +130,7 @@
   line-height: 1.6;
 }
 
-.demo-notice {
+.data-notice {
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -144,7 +144,7 @@
   line-height: 1.5;
 }
 
-.demo-notice strong {
+.data-notice strong {
   display: block;
   margin-bottom: 2px;
   font-size: 13px;
@@ -155,7 +155,7 @@
   color: #756741;
 }
 
-.demo-dot {
+.data-notice-dot {
   width: 9px;
   height: 9px;
   flex: 0 0 auto;
@@ -275,79 +275,17 @@
 }
 
 .weather-illustration {
-  position: relative;
+  display: grid;
   width: 190px;
   height: 150px;
   flex: 0 0 auto;
+  place-items: center;
 }
 
-.sun {
-  position: absolute;
-  top: 7px;
-  right: 24px;
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #ffdb83, #f3ae47);
-  box-shadow: 0 0 0 14px rgb(255 205 113 / 16%);
-}
-
-.cloud {
-  position: absolute;
-  display: block;
-  height: 43px;
-  border-radius: 30px;
-  background: #fff;
-  box-shadow: 0 8px 20px rgb(57 91 70 / 11%);
-}
-
-.cloud::before,
-.cloud::after {
-  position: absolute;
-  border-radius: 50%;
-  background: inherit;
-  content: '';
-}
-
-.cloud-back {
-  right: 0;
-  bottom: 28px;
-  width: 114px;
-  background: #e8f1eb;
-}
-
-.cloud-back::before {
-  top: -19px;
-  left: 21px;
-  width: 42px;
-  height: 42px;
-}
-
-.cloud-back::after {
-  top: -11px;
-  right: 20px;
-  width: 34px;
-  height: 34px;
-}
-
-.cloud-front {
-  bottom: 15px;
-  left: 8px;
-  width: 137px;
-}
-
-.cloud-front::before {
-  top: -23px;
-  left: 28px;
-  width: 50px;
-  height: 50px;
-}
-
-.cloud-front::after {
-  top: -13px;
-  right: 20px;
-  width: 39px;
-  height: 39px;
+.weather-symbol {
+  font-size: clamp(72px, 12vw, 106px);
+  line-height: 1;
+  filter: drop-shadow(0 10px 12px rgb(57 91 70 / 12%));
 }
 
 .detail-grid {
@@ -389,6 +327,12 @@
   font-size: 12px;
 }
 
+.detail-caption {
+  margin: 3px 0 0;
+  color: #849188;
+  font-size: 11px;
+}
+
 .detail-value {
   margin: 0;
   color: #2b4135;
@@ -402,6 +346,111 @@
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0;
+}
+
+.weather-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e8eee9;
+}
+
+.observation-time {
+  margin: 0;
+  color: #78877e;
+  font-size: 12px;
+}
+
+.weather-attribution {
+  color: #286d91;
+  font-size: 12px;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+.refresh-button,
+.retry-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #cddbd1;
+  border-radius: 9px;
+  background: #f7faf7;
+  color: #315d42;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.refresh-button {
+  margin-left: auto;
+}
+
+.refresh-button:hover,
+.retry-button:hover {
+  border-color: #83aa8e;
+  background: #edf5ef;
+}
+
+.refresh-button:focus-visible,
+.retry-button:focus-visible {
+  outline: 3px solid #75b8ff;
+  outline-offset: 3px;
+}
+
+.weather-state,
+.weather-error,
+.aqi-state,
+.aqi-error {
+  display: flex;
+  min-height: 90px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px solid #e6ede8;
+  border-radius: 14px;
+  background: #f9fbf9;
+  color: #586d60;
+  font-size: 14px;
+}
+
+.weather-error,
+.aqi-error {
+  flex-wrap: wrap;
+  padding: 16px;
+  border-color: #f0d7d4;
+  background: #fff8f7;
+  color: #8d3932;
+  text-align: center;
+}
+
+.weather-error p,
+.aqi-error p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.retry-button {
+  border-color: #e2b9b5;
+  background: #fff;
+  color: #823b34;
+}
+
+.loading-spinner {
+  width: 19px;
+  height: 19px;
+  border: 2px solid #d5e5d9;
+  border-top-color: #43835a;
+  border-radius: 50%;
+  animation: spin 750ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .aqi-overview {
@@ -434,77 +483,77 @@
   color: #317b51;
 }
 
-.aqi-overview[data-aqi-category='satisfactory'] .aqi-value,
-.aqi-overview[data-aqi-category='satisfactory'] .aqi-category,
-.aqi-overview[data-aqi-category='satisfactory'] .aqi-gauge {
-  color: #6f7f2e;
-}
-
-.aqi-overview[data-aqi-category='satisfactory'] .aqi-category {
-  background: #f0f3dd;
-}
-
-.aqi-overview[data-aqi-category='satisfactory'] .aqi-gauge {
-  border-right-color: #b7c37a;
-  border-bottom-color: #b7c37a;
-}
-
 .aqi-overview[data-aqi-category='moderate'] .aqi-value,
 .aqi-overview[data-aqi-category='moderate'] .aqi-category,
 .aqi-overview[data-aqi-category='moderate'] .aqi-gauge {
-  color: #9a5c14;
+  color: #8a7200;
 }
 
 .aqi-overview[data-aqi-category='moderate'] .aqi-category {
-  background: #fff1dc;
+  background: #f5efc9;
 }
 
 .aqi-overview[data-aqi-category='moderate'] .aqi-gauge {
-  border-right-color: #e2b269;
-  border-bottom-color: #e2b269;
+  border-right-color: #cabb6e;
+  border-bottom-color: #cabb6e;
 }
 
-.aqi-overview[data-aqi-category='poor'] .aqi-value,
-.aqi-overview[data-aqi-category='poor'] .aqi-category,
-.aqi-overview[data-aqi-category='poor'] .aqi-gauge {
-  color: #a64e2a;
+.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-value,
+.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-category,
+.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-gauge {
+  color: #a65c12;
 }
 
-.aqi-overview[data-aqi-category='poor'] .aqi-category {
-  background: #fbe9df;
+.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-category {
+  background: #fff0dc;
 }
 
-.aqi-overview[data-aqi-category='poor'] .aqi-gauge {
-  border-right-color: #d99878;
-  border-bottom-color: #d99878;
+.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-gauge {
+  border-right-color: #dda15d;
+  border-bottom-color: #dda15d;
 }
 
-.aqi-overview[data-aqi-category='very-poor'] .aqi-value,
-.aqi-overview[data-aqi-category='very-poor'] .aqi-category,
-.aqi-overview[data-aqi-category='very-poor'] .aqi-gauge {
-  color: #a33e42;
+.aqi-overview[data-aqi-category='unhealthy'] .aqi-value,
+.aqi-overview[data-aqi-category='unhealthy'] .aqi-category,
+.aqi-overview[data-aqi-category='unhealthy'] .aqi-gauge {
+  color: #ae423d;
 }
 
-.aqi-overview[data-aqi-category='very-poor'] .aqi-category {
-  background: #f9e3e3;
+.aqi-overview[data-aqi-category='unhealthy'] .aqi-category {
+  background: #fbe6e4;
 }
 
-.aqi-overview[data-aqi-category='very-poor'] .aqi-gauge {
+.aqi-overview[data-aqi-category='unhealthy'] .aqi-gauge {
   border-right-color: #d08589;
   border-bottom-color: #d08589;
 }
 
-.aqi-overview[data-aqi-category='severe'] .aqi-value,
-.aqi-overview[data-aqi-category='severe'] .aqi-category,
-.aqi-overview[data-aqi-category='severe'] .aqi-gauge {
+.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-value,
+.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-category,
+.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-gauge {
+  color: #784b91;
+}
+
+.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-category {
+  background: #f0e7f5;
+}
+
+.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-gauge {
+  border-right-color: #a88abd;
+  border-bottom-color: #a88abd;
+}
+
+.aqi-overview[data-aqi-category='hazardous'] .aqi-value,
+.aqi-overview[data-aqi-category='hazardous'] .aqi-category,
+.aqi-overview[data-aqi-category='hazardous'] .aqi-gauge {
   color: #803b65;
 }
 
-.aqi-overview[data-aqi-category='severe'] .aqi-category {
+.aqi-overview[data-aqi-category='hazardous'] .aqi-category {
   background: #f3e5ef;
 }
 
-.aqi-overview[data-aqi-category='severe'] .aqi-gauge {
+.aqi-overview[data-aqi-category='hazardous'] .aqi-gauge {
   border-right-color: #bd8bad;
   border-bottom-color: #bd8bad;
 }
@@ -590,7 +639,7 @@
     margin-bottom: 22px;
   }
 
-  .demo-notice {
+  .data-notice {
     padding: 12px;
     font-size: 12px;
   }
@@ -616,10 +665,21 @@
   }
 
   .weather-illustration {
-    width: 130px;
-    height: 120px;
-    transform: scale(0.78);
-    transform-origin: center right;
+    width: 110px;
+    height: 110px;
+  }
+
+  .weather-symbol {
+    font-size: 70px;
+  }
+
+  .weather-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .refresh-button {
+    margin-left: 0;
   }
 
   .aqi-gauge {

@@ -2,7 +2,7 @@
 
 ## Project
 
-- This is a React + TypeScript single-page app built with Vite and deployed on Vercel. Do not introduce Next.js or a database unless the user approves a feature plan that needs them.
+- This is a React + TypeScript single-page app built with Vite and deployed on Cloudflare Pages. Do not introduce Next.js or a database unless the user approves a feature plan that needs them.
 - Follow existing code and dependency patterns. Prefer small, complete changes; preserve unrelated work.
 - Use semantic, accessible, responsive UI. Do not present sample or fabricated air-quality/weather values as live data.
 - Before adding a data provider, verify the specific dataset/feed license and API terms. Do not imply CPCB, SAMEER, or government endorsement. Keep private credentials out of client code and Git.
@@ -17,7 +17,7 @@
 
 - Use [Vercel React Best Practices](../.agents/skills/vercel-react-best-practices/SKILL.md) when writing or optimizing React. Apply only guidance relevant to React + Vite; ignore Next.js-specific APIs and assumptions.
 - Use [Web Design Guidelines](../.agents/skills/web-design-guidelines/SKILL.md) when asked to review UI, accessibility, or UX.
-- Use [Deploy to Vercel](../.agents/skills/deploy-to-vercel/SKILL.md) when asked to deploy. Do not deploy or push changes without the user's request/approval.
+- Use [Deploy to Cloudflare](../.agents/skills/deploy-to-cloudflare/SKILL.md) when asked to deploy. Do not deploy or push changes without the user's request/approval.
 
 ## Checks
 
