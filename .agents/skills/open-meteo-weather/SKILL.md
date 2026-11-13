@@ -20,7 +20,7 @@ description: Guidance for BreatheSafe's non-commercial Open-Meteo current weathe
 - Treat provider observations as model-based current conditions, not local sensor readings.
 - Validate API responses. Show loading, recoverable error/retry, and update-time states. Never substitute demo weather when live data fails.
 - Abort superseded requests so an older city response cannot replace the selected city's weather.
-- Display a visible link to `https://open-meteo.com/` alongside weather data using the credit “Weather data by Open-Meteo.com”.
+- Display one visible link to `https://open-meteo.com/` in the shared Weather-tab footer below the calendar using the credit “Weather data by Open-Meteo.com”.
 - Do not describe weather estimates as local station measurements; keep weather attribution near the data.
 
 ## Acceptance criteria
@@ -28,7 +28,7 @@ description: Guidance for BreatheSafe's non-commercial Open-Meteo current weathe
 1. Initial load and selecting a supported city requests only that city's coordinates and renders validated current weather, feels-like temperature, matching-hour rain probability, and local-day high/low.
 2. Manual refresh requests the selected city again; outdated requests cannot overwrite newer selection data.
 3. Loading, provider/network/invalid-response errors, and retry are understandable and accessible; failures do not show fabricated weather.
-4. Open-Meteo weather credit is linked on the weather panel.
+4. Open-Meteo weather credit appears once in the shared footer below the forecast calendar.
 5. Playwright covers successful fetch, forecast details, city change, stale-request cancellation, refresh, loading/error/retry, invalid current and forecast responses, attribution, and mobile layout using mocked API responses.
 
 ## Verification

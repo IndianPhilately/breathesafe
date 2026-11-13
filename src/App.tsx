@@ -884,43 +884,6 @@ function App() {
                   </article>
                 </div>
 
-                <div className="weather-meta">
-                  <p className="observation-time">
-                    Model time{' '}
-                    <time
-                      dateTime={toObservationDateTime(
-                        selectedWeatherState.weather.observedAt,
-                      )}
-                    >
-                      {formatObservationTime(
-                        selectedWeatherState.weather.observedAt,
-                      )}{' '}
-                      IST
-                    </time>
-                  </p>
-                  <a
-                    className="weather-attribution"
-                    href="https://open-meteo.com/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Weather data by Open-Meteo.com
-                  </a>
-                  <button
-                    className="refresh-button"
-                    type="button"
-                    onClick={() => {
-                      setWeatherState({
-                        cityId: selectedCity.id,
-                        status: 'loading',
-                      })
-                      setRefreshVersion((version) => version + 1)
-                    }}
-                    aria-label={`Refresh weather for ${selectedCity.city}`}
-                  >
-                    Refresh weather
-                  </button>
-                </div>
               </>
             ) : null}
           </div>
@@ -1066,7 +1029,9 @@ function App() {
           >
             <div className="forecast-heading">
               <div>
-                <p className="panel-kicker">Weather calendar · {selectedCity.city}</p>
+                <p className="panel-kicker">
+                  {selectedCity.city} 30-day weather forecast
+                </p>
                 <h2 id="forecast-heading">
                   {formatForecastMonth(forecastMonth)}
                 </h2>
@@ -1227,30 +1192,23 @@ function App() {
                       {selectedMonthlyWeatherState.weather.days.length} days
                     </p>
                     <dl className="forecast-source-counts">
-                      <div>
-                        <dt>Historical reanalysis</dt>
-                        <dd>
-                          {selectedMonthlyWeatherState.weather.sourceCounts.historical}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Forecast</dt>
-                        <dd>
-                          {selectedMonthlyWeatherState.weather.sourceCounts.forecast}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Typical conditions</dt>
-                        <dd>
-                          {selectedMonthlyWeatherState.weather.sourceCounts.typical}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt>Unavailable</dt>
-                        <dd>
-                          {selectedMonthlyWeatherState.weather.sourceCounts.unavailable}
-                        </dd>
-                      </div>
+                      {(
+                        [
+                          ['historical', 'Historical reanalysis'],
+                          ['forecast', 'Forecast'],
+                          ['typical', 'Typical conditions'],
+                          ['unavailable', 'Unavailable'],
+                        ] as const
+                      ).map(([source, label]) => {
+                        const count =
+                          selectedMonthlyWeatherState.weather.sourceCounts[source]
+                        return count > 0 ? (
+                          <div key={source}>
+                            <dt>{label}</dt>
+                            <dd>{count}</dd>
+                          </div>
+                        ) : null
+                      })}
                     </dl>
                     <p className="forecast-summary-note">
                       Historical values are modeled ERA5 reanalysis, not station
@@ -1259,25 +1217,62 @@ function App() {
                     </p>
                   </aside>
                 </div>
-                <div className="weather-meta forecast-meta">
-                  <a
-                    className="weather-attribution"
-                    href="https://open-meteo.com/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Weather data by Open-Meteo.com
-                  </a>
-                  <a
-                    className="weather-attribution"
-                    href="https://open-meteo.com/en/licence"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Data licence
-                  </a>
-                </div>
               </>
+            ) : null}
+          </div>
+
+          <div
+            className="weather-meta weather-footer"
+            hidden={activeTab !== 'weather'}
+          >
+            <div className="weather-footer-details">
+              {selectedWeatherState?.status === 'success' ? (
+                <p className="observation-time">
+                  Model time{' '}
+                  <time
+                    dateTime={toObservationDateTime(
+                      selectedWeatherState.weather.observedAt,
+                    )}
+                  >
+                    {formatObservationTime(
+                      selectedWeatherState.weather.observedAt,
+                    )}{' '}
+                    IST
+                  </time>
+                </p>
+              ) : null}
+              <a
+                className="weather-attribution"
+                href="https://open-meteo.com/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Weather data by Open-Meteo.com
+              </a>
+              <a
+                className="weather-attribution"
+                href="https://open-meteo.com/en/licence"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Data licence
+              </a>
+            </div>
+            {selectedWeatherState?.status === 'success' ? (
+              <button
+                className="refresh-button"
+                type="button"
+                onClick={() => {
+                  setWeatherState({
+                    cityId: selectedCity.id,
+                    status: 'loading',
+                  })
+                  setRefreshVersion((version) => version + 1)
+                }}
+                aria-label={`Refresh weather for ${selectedCity.city}`}
+              >
+                Refresh weather
+              </button>
             ) : null}
           </div>
         </section>

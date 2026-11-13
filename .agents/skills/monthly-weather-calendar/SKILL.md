@@ -29,6 +29,10 @@ description: Guidance for BreatheSafe's monthly weather calendar combining forec
 - Forecast dates are limited to rows with validated daily values actually returned by the provider. A trailing null forecast date falls through to the date-matched typical average.
 - Typical highs/lows are arithmetic means for each month/day over the previous 10 completed years; the displayed icon uses the most frequent valid WMO code.
 - The calendar appears below current-weather details in the Weather tab, supports month navigation, shows source-specific counts and warning states, and cancels superseded city/month requests.
+- The calendar heading names the selected city and describes the month view as a 30-day weather forecast; its intro and per-day sources clarify that only available near-term days are forecast and later dates are typical conditions.
+- A single shared weather footer appears below the calendar and before the dashboard disclaimers, with the current model time, one Open-Meteo attribution, data licence, and weather refresh control.
+- The current-weather loading placeholder is sized to the details panel so loading-to-success does not shift the panel layout on desktop or mobile.
+- The month overview omits any source category whose count is zero; nonzero source counts and each day's source label remain visible.
 - Historical and typical values use Open-Meteo Archive/ERA5, are labeled in the UI, and are explicitly distinguished from station observations and weather forecasts.
 - The current weather panel remains separate and retains its current conditions, wind, humidity, feels-like, daily range, and rain-probability details.
 

@@ -236,10 +236,15 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
   })
 
   await expect(
-    page.getByRole('tabpanel', { name: 'Weather' }).getByRole('link', {
+    page.locator('.weather-footer').getByRole('link', {
       name: 'Weather data by Open-Meteo.com',
     }),
   ).toHaveAttribute('href', 'https://open-meteo.com/')
+  await expect(
+    page.locator('.weather-footer').getByRole('button', {
+      name: 'Refresh weather for Delhi',
+    }),
+  ).toBeVisible()
   await expect(
     page.getByText('Air quality · Model-based estimates'),
   ).toBeVisible()
@@ -393,24 +398,45 @@ test('shows the monthly calendar in the weather tab with historical, forecast, a
     page.getByText(/Some dates have no available archive/),
   ).toBeVisible()
   await expect(
-    page.locator('#forecast-panel').getByRole('link', {
+    page.locator('.weather-footer').getByRole('link', {
       name: 'Weather data by Open-Meteo.com',
     }),
   ).toHaveAttribute('href', 'https://open-meteo.com/')
-  await expect(
-    page.getByRole('tab', { name: 'Forecast' }),
-  ).toHaveCount(0)
+  await expect(page.locator('.weather-footer').getByRole('link', {
+    name: 'Weather data by Open-Meteo.com',
+  })).toHaveCount(1)
+  await expect(page.getByText('Delhi 30-day weather forecast')).toBeVisible()
   const detailsBounds = await page
     .getByRole('article')
     .filter({ hasText: 'Chance of rain' })
     .boundingBox()
   const calendarBounds = await page.locator('#forecast-panel').boundingBox()
+  const footerBounds = await page.locator('.weather-footer').boundingBox()
   const disclaimerBounds = await page.locator('.data-footnote').boundingBox()
+  const footerDetailsBounds = await page
+    .locator('.weather-footer-details')
+    .boundingBox()
+  const refreshBounds = await page
+    .locator('.weather-footer .refresh-button')
+    .boundingBox()
   expect(detailsBounds).not.toBeNull()
   expect(calendarBounds).not.toBeNull()
+  expect(footerBounds).not.toBeNull()
   expect(disclaimerBounds).not.toBeNull()
+  expect(footerDetailsBounds).not.toBeNull()
+  expect(refreshBounds).not.toBeNull()
   expect(detailsBounds!.y + detailsBounds!.height).toBeLessThan(calendarBounds!.y)
-  expect(calendarBounds!.y + calendarBounds!.height).toBeLessThan(
+  expect(calendarBounds!.y + calendarBounds!.height).toBeLessThanOrEqual(
+    footerBounds!.y,
+  )
+  expect(refreshBounds!.x).toBeGreaterThan(footerDetailsBounds!.x)
+  expect(
+    footerBounds!.x +
+      footerBounds!.width -
+      refreshBounds!.x -
+      refreshBounds!.width,
+  ).toBeGreaterThanOrEqual(20)
+  expect(footerBounds!.y + footerBounds!.height).toBeLessThan(
     disclaimerBounds!.y,
   )
 })
@@ -475,10 +501,21 @@ test('navigates months and reloads the calendar for the selected city on mobile'
   await expect(
     page.getByLabel('Daily weather calendar for November 2026'),
   ).toBeVisible()
+  const footer = page.locator('.weather-footer')
+  const footerBounds = await footer.boundingBox()
+  const refreshBounds = await footer.locator('.refresh-button').boundingBox()
+  expect(footerBounds).not.toBeNull()
+  expect(refreshBounds).not.toBeNull()
+  expect(
+    footerBounds!.x +
+      footerBounds!.width -
+      refreshBounds!.x -
+      refreshBounds!.width,
+  ).toBeGreaterThanOrEqual(16)
 
   await selectCityBySearch(page, 'Pune')
   await expect(
-    page.getByText('Weather calendar · Pune', { exact: true }),
+    page.getByText('Pune 30-day weather forecast', { exact: true }),
   ).toBeVisible()
   await expect.poll(() => requestedArchiveCoordinates.length).toBe(2)
   await expect.poll(() => requestedForecastCoordinates.length).toBe(2)
@@ -497,6 +534,10 @@ test('navigates months and reloads the calendar for the selected city on mobile'
   await expect(
     page.getByRole('complementary', { name: 'Monthly overview' }),
   ).toContainText('Typical conditions')
+  const sourceRows = page.locator('.forecast-source-counts > div')
+  await expect(sourceRows).toHaveCount(1)
+  await expect(sourceRows.first()).toContainText('Typical conditions')
+  await expect(sourceRows).not.toContainText('Unavailable')
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
@@ -572,7 +613,7 @@ test('reports monthly source failures and retries without losing the city contex
       page.getByLabel('Daily weather calendar for November 2026'),
     ).toBeVisible()
     await expect(
-      page.getByText('Weather calendar · Delhi', { exact: true }),
+      page.getByText('Delhi 30-day weather forecast', { exact: true }),
     ).toBeVisible()
 })
 
@@ -895,6 +936,7 @@ test('supports tab keyboard navigation and a narrow mobile viewport', async ({
   await expect(aqiTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByText('115', { exact: true })).toBeVisible()
   await expect(page.locator('#forecast-panel')).toBeHidden()
+  await expect(page.locator('.weather-footer')).toBeHidden()
 
   await page.keyboard.press('ArrowLeft')
   await expect(weatherTab).toBeFocused()
