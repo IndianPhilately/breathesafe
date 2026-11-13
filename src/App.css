@@ -549,13 +549,13 @@
 
 .detail-label {
   margin: 0 0 5px;
-  color: #728178;
+  color: #5f7065;
   font-size: 12px;
 }
 
 .detail-caption {
   margin: 3px 0 0;
-  color: #849188;
+  color: #5f7065;
   font-size: 11px;
 }
 
@@ -568,7 +568,7 @@
 }
 
 .detail-value span {
-  color: #73847a;
+  color: #5f7065;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0;
