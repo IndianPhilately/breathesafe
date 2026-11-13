@@ -151,6 +151,7 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
   await page.goto('/')
 
   await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
   await expect(page.getByText('Partly cloudy')).toBeVisible()
   await expect(page.getByText('68%', { exact: true })).toBeVisible()
   await expect(page.getByText('13 km/h', { exact: false })).toBeVisible()
@@ -165,9 +166,6 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
   ).toBeVisible()
   expect(requestedAirQualityRequests).toHaveLength(0)
 
-  await selectCityBySearch(page, 'Delhi')
-  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
-  await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
   expect(requestedAirQualityRequests).toHaveLength(0)
 
   await page.getByRole('tab', { name: 'Air quality' }).click()
@@ -230,7 +228,7 @@ test('refreshes weather and displays the live US AQI scale', async ({
   await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
   const requestsBeforeRefresh = requestCount
   nextTemperature = 31
-  await page.getByRole('button', { name: 'Refresh weather for Pune' }).click()
+  await page.getByRole('button', { name: 'Refresh weather for Delhi' }).click()
   await expect(page.getByLabel('31 degrees Celsius')).toBeVisible()
   expect(requestCount).toBeGreaterThan(requestsBeforeRefresh)
 
@@ -246,7 +244,7 @@ test('refreshes weather and displays the live US AQI scale', async ({
   ).toBeVisible()
 
   nextAqi = 151
-  await page.getByRole('button', { name: 'Refresh air quality for Pune' }).click()
+  await page.getByRole('button', { name: 'Refresh air quality for Delhi' }).click()
   await expect(page.getByText('151', { exact: true })).toBeVisible()
   await expect(page.getByText('Unhealthy', { exact: true })).toBeVisible()
   expect(airQualityRequestCount).toBe(2)
@@ -303,7 +301,7 @@ test('shows loading while the weather service is responding', async ({
     }
 
     await expect(page.getByRole('status')).toContainText(
-      'Loading current weather for Pune',
+      'Loading current weather for Delhi',
     )
     const loadingCardHeight = await page
       .locator('.dashboard-card')
@@ -322,30 +320,30 @@ test('shows loading while the weather service is responding', async ({
 test('a late response for the previous city cannot replace the selected city', async ({
   page,
 }) => {
-  let releasePuneResponse: (() => void) | undefined
-  let markPuneRequestStarted: (() => void) | undefined
-  let markPuneRouteFinished: (() => void) | undefined
-  const puneResponseGate = new Promise<void>((resolve) => {
-    releasePuneResponse = resolve
+  let releaseDelhiResponse: (() => void) | undefined
+  let markDelhiRequestStarted: (() => void) | undefined
+  let markDelhiRouteFinished: (() => void) | undefined
+  const delhiResponseGate = new Promise<void>((resolve) => {
+    releaseDelhiResponse = resolve
   })
-  const puneRequestStarted = new Promise<void>((resolve) => {
-    markPuneRequestStarted = resolve
+  const delhiRequestStarted = new Promise<void>((resolve) => {
+    markDelhiRequestStarted = resolve
   })
-  const puneRouteFinished = new Promise<void>((resolve) => {
-    markPuneRouteFinished = resolve
+  const delhiRouteFinished = new Promise<void>((resolve) => {
+    markDelhiRouteFinished = resolve
   })
 
   await page.route(weatherApiPattern, async (route) => {
     const url = new URL(route.request().url())
-    if (url.searchParams.get('latitude') === '18.5204') {
-      markPuneRequestStarted?.()
-      await puneResponseGate
+    if (url.searchParams.get('latitude') === '28.7041') {
+      markDelhiRequestStarted?.()
+      await delhiResponseGate
       if (!route.request().failure()) {
         await route.fulfill({
           json: currentWeather({ temperature_2m: 19 }),
         })
       }
-      markPuneRouteFinished?.()
+      markDelhiRouteFinished?.()
       return
     }
 
@@ -355,21 +353,21 @@ test('a late response for the previous city cannot replace the selected city', a
   })
 
   await page.goto('/')
-  await puneRequestStarted
+  await delhiRequestStarted
   const previousCityRequestFailed = page.waitForEvent(
     'requestfailed',
     (request) =>
-      request.url().includes('latitude=18.5204') &&
-      request.url().includes('longitude=73.8567'),
+      request.url().includes('latitude=28.7041') &&
+      request.url().includes('longitude=77.1025'),
   )
 
-  await selectCityBySearch(page, 'Delhi')
+  await selectCityBySearch(page, 'Pune')
   await expect(page.getByLabel('31 degrees Celsius')).toBeVisible()
   await previousCityRequestFailed
 
-  releasePuneResponse?.()
-  await puneRouteFinished
-  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
+  releaseDelhiResponse?.()
+  await delhiRouteFinished
+  await expect(page.getByRole('heading', { name: 'Pune, Maharashtra' })).toBeVisible()
   await expect(page.getByLabel('31 degrees Celsius')).toBeVisible()
   await expect(page.getByLabel('19 degrees Celsius')).toHaveCount(0)
 })
@@ -389,7 +387,7 @@ test('shows air-quality loading while Open-Meteo responds', async ({ page }) => 
   await page.goto('/')
   await page.getByRole('tab', { name: 'Air quality' }).click()
   await expect(page.getByRole('status')).toContainText(
-    'Loading current air quality for Pune',
+    'Loading current air quality for Delhi',
   )
 
   releaseResponse?.()
@@ -439,33 +437,33 @@ test('rejects invalid air-quality data rather than displaying it', async ({
 test('a late AQI response for a previous city cannot replace the selection', async ({
   page,
 }) => {
-  let releasePuneResponse: (() => void) | undefined
-  let markPuneRequestStarted: (() => void) | undefined
-  let markPuneRouteFinished: (() => void) | undefined
-  const puneResponseGate = new Promise<void>((resolve) => {
-    releasePuneResponse = resolve
+  let releaseDelhiResponse: (() => void) | undefined
+  let markDelhiRequestStarted: (() => void) | undefined
+  let markDelhiRouteFinished: (() => void) | undefined
+  const delhiResponseGate = new Promise<void>((resolve) => {
+    releaseDelhiResponse = resolve
   })
-  const puneRequestStarted = new Promise<void>((resolve) => {
-    markPuneRequestStarted = resolve
+  const delhiRequestStarted = new Promise<void>((resolve) => {
+    markDelhiRequestStarted = resolve
   })
-  const puneRouteFinished = new Promise<void>((resolve) => {
-    markPuneRouteFinished = resolve
+  const delhiRouteFinished = new Promise<void>((resolve) => {
+    markDelhiRouteFinished = resolve
   })
 
   await mockWeather(page)
   await page.route(airQualityApiPattern, async (route) => {
     const url = new URL(route.request().url())
-    if (url.searchParams.get('latitude') === '18.5204') {
-      markPuneRequestStarted?.()
+    if (url.searchParams.get('latitude') === '28.7041') {
+      markDelhiRequestStarted?.()
       try {
-        await puneResponseGate
+        await delhiResponseGate
         if (!route.request().failure()) {
           await route.fulfill({
             json: currentAirQuality({ us_aqi: 25 }),
           })
         }
       } finally {
-        markPuneRouteFinished?.()
+        markDelhiRouteFinished?.()
       }
       return
     }
@@ -477,21 +475,21 @@ test('a late AQI response for a previous city cannot replace the selection', asy
 
   await page.goto('/')
   await page.getByRole('tab', { name: 'Air quality' }).click()
-  await puneRequestStarted
+  await delhiRequestStarted
   const previousCityRequestFailed = page.waitForEvent(
     'requestfailed',
     (request) =>
-      request.url().includes('latitude=18.5204') &&
-      request.url().includes('longitude=73.8567'),
+      request.url().includes('latitude=28.7041') &&
+      request.url().includes('longitude=77.1025'),
   )
 
-  await selectCityBySearch(page, 'Delhi')
+  await selectCityBySearch(page, 'Pune')
   await expect(page.getByText('151', { exact: true })).toBeVisible()
   await previousCityRequestFailed
 
-  releasePuneResponse?.()
-  await puneRouteFinished
-  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
+  releaseDelhiResponse?.()
+  await delhiRouteFinished
+  await expect(page.getByRole('heading', { name: 'Pune, Maharashtra' })).toBeVisible()
   await expect(page.getByText('151', { exact: true })).toBeVisible()
   await expect(page.getByText('25', { exact: true })).toHaveCount(0)
 })
@@ -522,8 +520,11 @@ test('supports tab keyboard navigation and a narrow mobile viewport', async ({
   await expect(weatherTab).toHaveAttribute('aria-selected', 'true')
 
   const citySearch = page.getByRole('combobox', { name: 'Search cities' })
-  await citySearch.fill('')
+  await citySearch.fill('del')
   await expect(page.getByRole('listbox', { name: 'Matching cities' })).toBeVisible()
+  await expect(
+    page.getByRole('option', { name: /^Delhi, Delhi / }),
+  ).toBeVisible()
   const hasHorizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
   )
@@ -535,6 +536,16 @@ test('filters cities and supports keyboard selection', async ({ page }) => {
   await page.goto('/')
 
   const search = page.getByRole('combobox', { name: 'Search cities' })
+  await expect(search).toHaveValue('')
+  await expect(search).toHaveAttribute(
+    'placeholder',
+    'Search Indian cities or states',
+  )
+  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
+  await search.fill('de')
+  await expect(
+    page.getByRole('listbox', { name: 'Matching cities' }),
+  ).toBeHidden()
   await search.fill('vizag')
   await expect(
     page.getByRole('option', { name: 'Visakhapatnam, Andhra Pradesh' }),
@@ -545,7 +556,11 @@ test('filters cities and supports keyboard selection', async ({ page }) => {
   await expect(
     page.getByRole('heading', { name: 'Visakhapatnam, Andhra Pradesh' }),
   ).toBeVisible()
-  await expect(search).toHaveValue('Visakhapatnam, Andhra Pradesh')
+  await expect(search).toHaveValue('')
+  await expect(search).toHaveAttribute(
+    'placeholder',
+    'Search Indian cities or states',
+  )
 
   await search.fill('not a city')
   await expect(
@@ -562,7 +577,7 @@ test('shows source population and licensing without adding a Census tab', async 
   await mockWeather(page)
   await page.goto('/')
 
-  await expect(page.getByText('2011 Census population: 31,24,458')).toBeVisible()
+  await expect(page.getByText('2011 Census population: 1,10,34,555')).toBeVisible()
   const search = page.getByRole('combobox', { name: 'Search cities' })
   await search.fill('Mumbai')
 
@@ -626,7 +641,7 @@ test('uses device location on request to select the nearest supported city', asy
   })
 
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Pune, Maharashtra' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
   expect(
     await page.locator('html').getAttribute('data-location-calls'),
   ).toBeNull()
@@ -676,7 +691,7 @@ test('shows location permission errors without changing the selected city', asyn
   await page.goto('/')
   await page.getByRole('button', { name: 'Use my location' }).click()
   await expect(page.getByRole('alert')).toContainText('permission was denied')
-  await expect(page.getByRole('heading', { name: 'Pune, Maharashtra' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
 })
 
 test('keeps a manual city choice when a pending location lookup completes late', async ({

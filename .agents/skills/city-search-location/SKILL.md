@@ -8,10 +8,10 @@ description: Guidance for BreatheSafe's searchable India city picker and opt-in 
 ## Approved scope
 
 - Replace the native city select with a searchable, keyboard-operable city picker inspired by the supplied reference.
-- Support the 339 Indian city entries in Wikipedia's “List of cities in India by population” table above 100,000, using the listed 2011 population values and coordinates. Preserve Pune as the initial city.
+- Support the 339 Indian city entries in Wikipedia's “List of cities in India by population” table above 100,000, using the listed 2011 population values and coordinates. Use Delhi as the initial city.
 - Offer an explicit device-location action. Do not request location automatically or persist precise device coordinates.
 - Resolve device coordinates to the nearest supported city and continue using that city's maintained coordinates for existing Open-Meteo weather and air-quality requests.
-- Keep Pune as the fallback city when location is not requested or unavailable.
+- Keep Delhi as the fallback city when location is not requested or unavailable.
 
 ## Domain and implementation guidance
 
@@ -27,7 +27,7 @@ description: Guidance for BreatheSafe's searchable India city picker and opt-in 
 - City names, states, aliases, 2011 populations, and coordinates live in `src/data/cities.ts`, adapted from the article's list above 100,000 population.
 - The list is a static snapshot; its population values are from Census 2011 and should not be presented as current estimates.
 - `findNearestCity` uses Haversine distance to select the closest supported city to device coordinates. Only the resulting city is kept in application state; raw coordinates are not persisted.
-- The search input starts with the selected city, supports clear/search/arrow/enter/escape interactions, and displays its results in the reference-inspired dark dropdown. The dashboard shows the selected city's 2011 population; results link the source article and CC BY-SA 4.0 licence.
+- The search input starts empty with a placeholder, shows suggestions after three characters, and clears after selection while the dashboard retains the selected city. It supports arrow/enter/escape interactions and displays results in the reference-inspired dark dropdown. The dashboard shows the selected city's 2011 population; results link the source article and CC BY-SA 4.0 licence.
 - A newer manual search/selection invalidates a pending location result so it cannot override the user's later choice.
 - Verified with `npm.cmd run build`, `npm.cmd run lint`, and the Playwright e2e suite.
 

@@ -37,9 +37,9 @@ type AirQualityLoadState =
   | { cityId: string; status: 'error'; message: string }
 
 function getInitialCity(): CityDashboardData {
-  const city = cityDashboardData.find((item) => item.id === 'pune')
+  const city = cityDashboardData.find((item) => item.id === 'delhi')
   if (!city) {
-    throw new Error('The Pune city is missing from the city data.')
+    throw new Error('The Delhi city is missing from the city data.')
   }
   return city
 }
@@ -49,9 +49,7 @@ const initialCity = getInitialCity()
 function App() {
   const [selectedCity, setSelectedCity] =
     useState<CityDashboardData>(initialCity)
-  const [citySearch, setCitySearch] = useState(
-    `${initialCity.city}, ${initialCity.state}`,
-  )
+  const [citySearch, setCitySearch] = useState('')
   const [isCityListOpen, setIsCityListOpen] = useState(false)
   const [activeCityIndex, setActiveCityIndex] = useState(-1)
   const [locationState, setLocationState] = useState<{
@@ -230,38 +228,41 @@ function App() {
   const selectedWeatherState =
     weatherState.cityId === selectedCity.id ? weatherState : null
   const normalizedSearch = citySearch.trim().toLocaleLowerCase()
-  const matchingCities = cityDashboardData
-    .filter((city) =>
-      [city.city, city.state, ...(city.searchAliases ?? [])].some((value) =>
-        value.toLocaleLowerCase().includes(normalizedSearch),
-      ),
-    )
-    .sort((left, right) => {
-      const leftNameStartsWithQuery = [
-        left.city,
-        ...(left.searchAliases ?? []),
-      ].some((value) =>
-        value.toLocaleLowerCase().startsWith(normalizedSearch),
-      )
-      const rightNameStartsWithQuery = [
-        right.city,
-        ...(right.searchAliases ?? []),
-      ].some((value) =>
-        value.toLocaleLowerCase().startsWith(normalizedSearch),
-      )
+  const hasMinimumSearchLength = normalizedSearch.length >= 3
+  const matchingCities = hasMinimumSearchLength
+    ? cityDashboardData
+        .filter((city) =>
+          [city.city, city.state, ...(city.searchAliases ?? [])].some((value) =>
+            value.toLocaleLowerCase().includes(normalizedSearch),
+          ),
+        )
+        .sort((left, right) => {
+          const leftNameStartsWithQuery = [
+            left.city,
+            ...(left.searchAliases ?? []),
+          ].some((value) =>
+            value.toLocaleLowerCase().startsWith(normalizedSearch),
+          )
+          const rightNameStartsWithQuery = [
+            right.city,
+            ...(right.searchAliases ?? []),
+          ].some((value) =>
+            value.toLocaleLowerCase().startsWith(normalizedSearch),
+          )
 
-      if (leftNameStartsWithQuery !== rightNameStartsWithQuery) {
-        return leftNameStartsWithQuery ? -1 : 1
-      }
+          if (leftNameStartsWithQuery !== rightNameStartsWithQuery) {
+            return leftNameStartsWithQuery ? -1 : 1
+          }
 
-      return left.city.localeCompare(right.city)
-    })
-    .slice(0, 8)
+          return left.city.localeCompare(right.city)
+        })
+        .slice(0, 8)
+    : []
 
   function selectCity(city: CityDashboardData) {
     locationRequestId.current += 1
     setSelectedCity(city)
-    setCitySearch(`${city.city}, ${city.state}`)
+    setCitySearch('')
     setIsCityListOpen(false)
     setActiveCityIndex(-1)
     setLocationState({ status: 'idle', message: '' })
@@ -303,7 +304,7 @@ function App() {
       selectCity(matchingCities[0])
     } else if (event.key === 'Escape') {
       setIsCityListOpen(false)
-      setCitySearch(`${selectedCity.city}, ${selectedCity.state}`)
+      setCitySearch('')
     }
   }
 
@@ -387,24 +388,28 @@ function App() {
                 id="city-search"
                 role="combobox"
                 aria-autocomplete="list"
-                aria-expanded={isCityListOpen}
+                aria-expanded={isCityListOpen && hasMinimumSearchLength}
                 aria-controls="city-results"
                 aria-activedescendant={
-                  isCityListOpen && matchingCities[activeCityIndex]
+                  isCityListOpen &&
+                  hasMinimumSearchLength &&
+                  matchingCities[activeCityIndex]
                     ? `city-option-${matchingCities[activeCityIndex].id}`
                     : undefined
                 }
                 autoComplete="off"
-                placeholder="Search a city"
+                placeholder="Search Indian cities or states"
                 value={citySearch}
                 onChange={(event) => {
                   locationRequestId.current += 1
                   setCitySearch(event.target.value)
                   setActiveCityIndex(-1)
-                  setIsCityListOpen(true)
+                  setIsCityListOpen(event.target.value.trim().length >= 3)
                   setLocationState({ status: 'idle', message: '' })
                 }}
-                onFocus={() => setIsCityListOpen(true)}
+                onFocus={() =>
+                  setIsCityListOpen(hasMinimumSearchLength)
+                }
                 onBlur={() => setIsCityListOpen(false)}
                 onKeyDown={handleCitySearchKeyDown}
               />
@@ -418,7 +423,7 @@ function App() {
                     locationRequestId.current += 1
                     setCitySearch('')
                     setActiveCityIndex(-1)
-                    setIsCityListOpen(true)
+                    setIsCityListOpen(false)
                     setLocationState({ status: 'idle', message: '' })
                   }}
                 >
@@ -447,13 +452,13 @@ function App() {
             </div>
             <div
               className={
-                isCityListOpen
+                isCityListOpen && hasMinimumSearchLength
                   ? 'city-results-panel open'
                   : 'city-results-panel'
               }
-              aria-hidden={!isCityListOpen}
+              aria-hidden={!isCityListOpen || !hasMinimumSearchLength}
             >
-              <p className="city-results-heading">Cities</p>
+              <p className="city-results-heading">Suggestions</p>
               <p className="city-results-subheading">
                 {cityDashboardData.length} cities · {CITY_POPULATION_YEAR}{' '}
                 population · {populationFormatter.format(CITY_POPULATION_MINIMUM)}+
