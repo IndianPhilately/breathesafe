@@ -4,6 +4,10 @@ export type CurrentWeather = {
   weatherCode: number
   windSpeedKph: number
   windDirectionDegrees: number
+  apparentTemperatureC: number
+  temperatureMaxC: number
+  temperatureMinC: number
+  precipitationProbability: number
   observedAt: string
 }
 
@@ -15,6 +19,16 @@ type OpenMeteoResponse = {
     weather_code?: unknown
     wind_speed_10m?: unknown
     wind_direction_10m?: unknown
+    apparent_temperature?: unknown
+  }
+  hourly?: {
+    time?: unknown
+    precipitation_probability?: unknown
+  }
+  daily?: {
+    time?: unknown
+    temperature_2m_max?: unknown
+    temperature_2m_min?: unknown
   }
   error?: unknown
   reason?: unknown
@@ -33,7 +47,10 @@ export async function fetchCurrentWeather(
     latitude: String(latitude),
     longitude: String(longitude),
     current:
-      'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m',
+      'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,apparent_temperature',
+    hourly: 'precipitation_probability',
+    daily: 'temperature_2m_max,temperature_2m_min',
+    forecast_days: '1',
     temperature_unit: 'celsius',
     wind_speed_unit: 'kmh',
     timezone: LOCAL_TIME_ZONE,
@@ -78,6 +95,7 @@ export async function fetchCurrentWeather(
   const weatherCode = current.weather_code
   const windSpeedKph = current.wind_speed_10m
   const windDirectionDegrees = current.wind_direction_10m
+  const apparentTemperatureC = current.apparent_temperature
   const observedAt = current.time
 
   if (
@@ -101,10 +119,59 @@ export async function fetchCurrentWeather(
     !Number.isInteger(windDirectionDegrees) ||
     windDirectionDegrees < 0 ||
     windDirectionDegrees > 360 ||
+    typeof apparentTemperatureC !== 'number' ||
+    !Number.isFinite(apparentTemperatureC) ||
+    apparentTemperatureC < -90 ||
+    apparentTemperatureC > 60 ||
     typeof observedAt !== 'string' ||
     !isLocalDateTime(observedAt)
   ) {
     throw new Error('The weather service returned incomplete or invalid current conditions.')
+  }
+
+  const hourlyTimes = payload.hourly?.time
+  const precipitationProbabilities = payload.hourly?.precipitation_probability
+  const hourlyIndex = isStringArray(hourlyTimes)
+    ? hourlyTimes.findIndex(
+        (time) => time.slice(0, 13) === observedAt.slice(0, 13),
+      )
+    : -1
+  const precipitationProbability =
+    isNumberArray(precipitationProbabilities) && hourlyIndex >= 0
+      ? precipitationProbabilities[hourlyIndex]
+      : undefined
+  const dailyTimes = payload.daily?.time
+  const dailyMaximums = payload.daily?.temperature_2m_max
+  const dailyMinimums = payload.daily?.temperature_2m_min
+  const dateIndex =
+    isStringArray(dailyTimes)
+      ? dailyTimes.indexOf(observedAt.slice(0, 10))
+      : -1
+  const temperatureMaxC =
+    isNumberArray(dailyMaximums) && dateIndex >= 0
+      ? dailyMaximums[dateIndex]
+      : undefined
+  const temperatureMinC =
+    isNumberArray(dailyMinimums) && dateIndex >= 0
+      ? dailyMinimums[dateIndex]
+      : undefined
+
+  if (
+    typeof precipitationProbability !== 'number' ||
+    !Number.isInteger(precipitationProbability) ||
+    precipitationProbability < 0 ||
+    precipitationProbability > 100 ||
+    typeof temperatureMaxC !== 'number' ||
+    !Number.isFinite(temperatureMaxC) ||
+    temperatureMaxC < -90 ||
+    temperatureMaxC > 60 ||
+    typeof temperatureMinC !== 'number' ||
+    !Number.isFinite(temperatureMinC) ||
+    temperatureMinC < -90 ||
+    temperatureMinC > 60 ||
+    temperatureMaxC < temperatureMinC
+  ) {
+    throw new Error('The weather service returned incomplete or invalid forecast details.')
   }
 
   return {
@@ -113,8 +180,20 @@ export async function fetchCurrentWeather(
     weatherCode,
     windSpeedKph,
     windDirectionDegrees,
+    apparentTemperatureC,
+    temperatureMaxC,
+    temperatureMinC,
+    precipitationProbability,
     observedAt,
   }
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function isNumberArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'number')
 }
 
 function isLocalDateTime(value: string): boolean {

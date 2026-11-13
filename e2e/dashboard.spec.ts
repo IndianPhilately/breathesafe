@@ -9,6 +9,7 @@ import {
 const weatherApiPattern = 'https://api.open-meteo.com/v1/forecast**'
 const airQualityApiPattern =
   'https://air-quality-api.open-meteo.com/v1/air-quality**'
+const archiveApiPattern = 'https://archive-api.open-meteo.com/v1/archive**'
 
 function currentWeather(overrides: Record<string, unknown> = {}) {
   return {
@@ -19,7 +20,17 @@ function currentWeather(overrides: Record<string, unknown> = {}) {
       weather_code: 2,
       wind_speed_10m: 12.6,
       wind_direction_10m: 90,
+      apparent_temperature: 24.1,
       ...overrides,
+    },
+    hourly: {
+      time: ['2026-11-14T02:00'],
+      precipitation_probability: [9],
+    },
+    daily: {
+      time: ['2026-11-14'],
+      temperature_2m_max: [30],
+      temperature_2m_min: [17],
     },
   }
 }
@@ -36,8 +47,41 @@ function currentAirQuality(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function addIsoDays(date: string, offset: number) {
+  const value = new Date(`${date}T00:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + offset)
+  return value.toISOString().slice(0, 10)
+}
+
+async function fulfillDailyWeatherRange(route: Route) {
+  const url = new URL(route.request().url())
+  const start = new Date(`${url.searchParams.get('start_date')}T00:00:00Z`)
+  const end = new Date(`${url.searchParams.get('end_date')}T00:00:00Z`)
+  const dates: string[] = []
+  for (const date = new Date(start); date <= end; date.setUTCDate(date.getUTCDate() + 1)) {
+    dates.push(date.toISOString().slice(0, 10))
+  }
+
+  await route.fulfill({
+    json: {
+      daily: {
+        time: dates,
+        temperature_2m_max: dates.map(() => 29),
+        temperature_2m_min: dates.map(() => 18),
+        weather_code: dates.map(() => 1),
+      },
+    },
+  })
+}
+
 async function mockWeather(page: Page, response?: (route: Route) => Promise<void>) {
   await page.route(weatherApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('forecast_days') === '16') {
+      await fulfillDailyWeatherRange(route)
+      return
+    }
+
     if (response) {
       await response(route)
       return
@@ -60,6 +104,12 @@ async function mockAirQuality(
     await route.fulfill({ json: currentAirQuality() })
   })
 }
+
+test.beforeEach(async ({ page }) => {
+  await page.route(archiveApiPattern, async (route) => {
+    await fulfillDailyWeatherRange(route)
+  })
+})
 
 async function selectCityBySearch(page: Page, cityName: string) {
   const search = page.getByRole('combobox', { name: 'Search cities' })
@@ -123,6 +173,7 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
 }) => {
   const requestedLocations: Array<{ latitude: string | null; longitude: string | null }> =
     []
+  const requestedWeatherQueries: Array<Record<string, string | null>> = []
   const requestedAirQualityRequests: Array<{
     latitude: string | null
     longitude: string | null
@@ -134,6 +185,13 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
     requestedLocations.push({
       latitude: url.searchParams.get('latitude'),
       longitude: url.searchParams.get('longitude'),
+    })
+    requestedWeatherQueries.push({
+      current: url.searchParams.get('current'),
+      hourly: url.searchParams.get('hourly'),
+      daily: url.searchParams.get('daily'),
+      forecast_days: url.searchParams.get('forecast_days'),
+      timezone: url.searchParams.get('timezone'),
     })
     await route.fulfill({ json: currentWeather() })
   })
@@ -155,12 +213,33 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
   await expect(page.getByText('Partly cloudy')).toBeVisible()
   await expect(page.getByText('68%', { exact: true })).toBeVisible()
   await expect(page.getByText('13 km/h', { exact: false })).toBeVisible()
+  await expect(page.getByText(/High: 30°C.*Low: 17°C/)).toBeVisible()
+  await expect(
+    page.getByRole('article').filter({ hasText: 'Feels like' }),
+  ).toContainText('24°C')
+  await expect(
+    page.getByRole('article').filter({ hasText: 'Chance of rain' }),
+  ).toContainText('9%')
+  await expect(
+    page.getByRole('article').filter({ hasText: 'Wind' }),
+  ).toContainText('13 km/h')
   await expect(page.getByText(/Model time 14 Nov 2026, 2:00 am IST/)).toBeVisible()
-
-  const attribution = page.getByRole('link', {
-    name: 'Weather data by Open-Meteo.com',
+  expect(
+    requestedWeatherQueries.find((query) => query.forecast_days === '1'),
+  ).toEqual({
+    current:
+      'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,apparent_temperature',
+    hourly: 'precipitation_probability',
+    daily: 'temperature_2m_max,temperature_2m_min',
+    forecast_days: '1',
+    timezone: 'Asia/Kolkata',
   })
-  await expect(attribution).toHaveAttribute('href', 'https://open-meteo.com/')
+
+  await expect(
+    page.getByRole('tabpanel', { name: 'Weather' }).getByRole('link', {
+      name: 'Weather data by Open-Meteo.com',
+    }),
+  ).toHaveAttribute('href', 'https://open-meteo.com/')
   await expect(
     page.getByText('Air quality · Model-based estimates'),
   ).toBeVisible()
@@ -200,6 +279,301 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
   expect(
     new Set(requestedLocations.map(({ latitude, longitude }) => `${latitude},${longitude}`)),
   ).toEqual(new Set(['18.5204,73.8567', '28.7041,77.1025']))
+})
+
+test('matches rain probability to the current hourly forecast interval', async ({
+  page,
+}) => {
+  await page.route(weatherApiPattern, async (route) => {
+    const response = currentWeather({ time: '2026-11-14T02:15' })
+    await route.fulfill({ json: response })
+  })
+
+  await page.goto('/')
+  await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
+  await expect(
+    page.getByRole('article').filter({ hasText: 'Chance of rain' }),
+  ).toContainText('9%')
+})
+
+test('shows the monthly calendar in the weather tab with historical, forecast, and typical data', async ({
+  page,
+}) => {
+  await page.clock.install({
+    time: new Date('2026-11-14T03:30:00+05:30'),
+  })
+
+  const forecastDates = Array.from({ length: 16 }, (_, index) =>
+    addIsoDays('2026-11-14', index),
+  )
+  await page.route(weatherApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('forecast_days') === '16') {
+      await route.fulfill({
+        json: {
+          daily: {
+            time: forecastDates,
+            temperature_2m_max: forecastDates.map((_, index) =>
+              index === 15 ? null : 31,
+            ),
+            temperature_2m_min: forecastDates.map((_, index) =>
+              index === 15 ? null : 20,
+            ),
+            weather_code: forecastDates.map((_, index) =>
+              index === 15 ? null : 2,
+            ),
+          },
+        },
+      })
+      return
+    }
+
+    await route.fulfill({ json: currentWeather() })
+  })
+
+  const typicalDates = Array.from({ length: 10 }, (_, index) => [
+    `${2016 + index}-11-29`,
+    `${2016 + index}-11-30`,
+  ]).flat()
+  await page.route(archiveApiPattern, async (route) => {
+    const dates = [...typicalDates, '2026-11-13'].sort()
+    await route.fulfill({
+      json: {
+        daily: {
+          time: dates,
+          temperature_2m_max: dates.map((date) =>
+            date === '2026-11-13' ? 28 : date.endsWith('-11-29') ? 29 : 30,
+          ),
+          temperature_2m_min: dates.map((date) =>
+            date === '2026-11-13' ? 16 : date.endsWith('-11-29') ? 19 : 20,
+          ),
+          weather_code: dates.map((date) =>
+            date === '2026-11-13' ? 61 : 0,
+          ),
+        },
+      },
+    })
+  })
+
+  await page.goto('/')
+  const calendar = page.getByLabel('Daily weather calendar for November 2026')
+  await expect(calendar).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Weather' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await expect(
+    calendar.getByRole('article', {
+      name: /13 November, Historical reanalysis/,
+    }),
+  )
+    .toContainText('28°')
+  await expect(
+    calendar.getByRole('article', {
+      name: /14 November, Forecast/,
+    }),
+  ).toContainText('31°')
+  await expect(
+    calendar.getByRole('article', {
+      name: /29 November, Typical conditions, 10-year average/,
+    }),
+  ).toContainText('29°')
+  await expect(
+    calendar.getByRole('article', {
+      name: /30 November, Typical conditions, 10-year average/,
+    }),
+  ).toContainText('30°')
+
+  const summary = page.getByRole('complementary', { name: 'Monthly overview' })
+  await expect(summary).toContainText('Historical reanalysis')
+  await expect(summary).toContainText('Forecast')
+  await expect(summary).toContainText('Typical conditions')
+  await expect(summary).toContainText('Unavailable')
+  await expect(
+    page.getByText(/Some dates have no available archive/),
+  ).toBeVisible()
+  await expect(
+    page.locator('#forecast-panel').getByRole('link', {
+      name: 'Weather data by Open-Meteo.com',
+    }),
+  ).toHaveAttribute('href', 'https://open-meteo.com/')
+  await expect(
+    page.getByRole('tab', { name: 'Forecast' }),
+  ).toHaveCount(0)
+  const detailsBounds = await page
+    .getByRole('article')
+    .filter({ hasText: 'Chance of rain' })
+    .boundingBox()
+  const calendarBounds = await page.locator('#forecast-panel').boundingBox()
+  const disclaimerBounds = await page.locator('.data-footnote').boundingBox()
+  expect(detailsBounds).not.toBeNull()
+  expect(calendarBounds).not.toBeNull()
+  expect(disclaimerBounds).not.toBeNull()
+  expect(detailsBounds!.y + detailsBounds!.height).toBeLessThan(calendarBounds!.y)
+  expect(calendarBounds!.y + calendarBounds!.height).toBeLessThan(
+    disclaimerBounds!.y,
+  )
+})
+
+test('navigates months and reloads the calendar for the selected city on mobile', async ({
+  page,
+}) => {
+  await page.clock.install({
+    time: new Date('2026-11-14T03:30:00+05:30'),
+  })
+  await page.setViewportSize({ width: 375, height: 812 })
+
+  const requestedArchiveCoordinates: string[] = []
+  const requestedForecastCoordinates: string[] = []
+  await page.route(weatherApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('forecast_days') === '16') {
+      requestedForecastCoordinates.push(
+        `${url.searchParams.get('latitude')},${url.searchParams.get('longitude')}`,
+      )
+      const dates = Array.from({ length: 16 }, (_, index) =>
+        addIsoDays('2026-11-14', index),
+      )
+      await route.fulfill({
+        json: {
+          daily: {
+            time: dates,
+            temperature_2m_max: dates.map(() => 29),
+            temperature_2m_min: dates.map(() => 18),
+            weather_code: dates.map(() => 1),
+          },
+        },
+      })
+      return
+    }
+    await route.fulfill({ json: currentWeather() })
+  })
+  await page.route(archiveApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    requestedArchiveCoordinates.push(
+      `${url.searchParams.get('latitude')},${url.searchParams.get('longitude')}`,
+    )
+    const dates = Array.from({ length: 10 }, (_, yearIndex) =>
+      Array.from({ length: 31 }, (_, dayIndex) => {
+        const day = String(dayIndex + 1).padStart(2, '0')
+        return `${2016 + yearIndex}-12-${day}`
+      }),
+    ).flat()
+    await route.fulfill({
+      json: {
+        daily: {
+          time: dates,
+          temperature_2m_max: dates.map(() => 29),
+          temperature_2m_min: dates.map(() => 18),
+          weather_code: dates.map(() => 1),
+        },
+      },
+    })
+  })
+
+  await page.goto('/')
+  await expect(
+    page.getByLabel('Daily weather calendar for November 2026'),
+  ).toBeVisible()
+
+  await selectCityBySearch(page, 'Pune')
+  await expect(
+    page.getByText('Weather calendar · Pune', { exact: true }),
+  ).toBeVisible()
+  await expect.poll(() => requestedArchiveCoordinates.length).toBe(2)
+  await expect.poll(() => requestedForecastCoordinates.length).toBe(2)
+  expect(requestedForecastCoordinates).toEqual([
+    '28.7041,77.1025',
+    '18.5204,73.8567',
+  ])
+
+  await page.getByRole('button', { name: 'Next month' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'December 2026' }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.forecast-source-counts').getByText('31', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('complementary', { name: 'Monthly overview' }),
+  ).toContainText('Typical conditions')
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    ),
+  ).toBe(true)
+    await expect.poll(() => requestedArchiveCoordinates.length).toBe(3)
+    expect(requestedArchiveCoordinates).toEqual([
+      '28.7041,77.1025',
+      '18.5204,73.8567',
+      '18.5204,73.8567',
+    ])
+})
+
+test('reports monthly source failures and retries without losing the city context', async ({
+    page,
+}) => {
+    await page.clock.install({
+      time: new Date('2026-11-14T03:30:00+05:30'),
+    })
+    let shouldFail = true
+    await page.route(weatherApiPattern, async (route) => {
+      const url = new URL(route.request().url())
+      if (url.searchParams.get('forecast_days') === '16') {
+        if (shouldFail) {
+          await route.fulfill({ status: 503, body: 'Unavailable' })
+          return
+        }
+        const dates = Array.from({ length: 16 }, (_, index) =>
+          addIsoDays('2026-11-14', index),
+        )
+        await route.fulfill({
+          json: {
+            daily: {
+              time: dates,
+              temperature_2m_max: dates.map(() => 29),
+              temperature_2m_min: dates.map(() => 18),
+              weather_code: dates.map(() => 1),
+            },
+          },
+        })
+        return
+      }
+      await route.fulfill({ json: currentWeather() })
+    })
+    await page.route(archiveApiPattern, async (route) => {
+      if (shouldFail) {
+        await route.fulfill({ status: 503, body: 'Unavailable' })
+        return
+      }
+      await route.fulfill({
+        json: {
+          daily: {
+            time: ['2025-11-30'],
+            temperature_2m_max: [28],
+            temperature_2m_min: [17],
+            weather_code: [2],
+          },
+        },
+      })
+    })
+
+    await page.goto('/')
+    await expect(page.getByRole('alert')).toContainText(
+      'Historical and typical weather data could not be loaded',
+    )
+    await expect(page.getByRole('alert')).toContainText(
+      'The 16-day forecast could not be loaded',
+    )
+
+    shouldFail = false
+    await page.getByRole('button', { name: 'Retry' }).click()
+    await expect(
+      page.getByLabel('Daily weather calendar for November 2026'),
+    ).toBeVisible()
+    await expect(
+      page.getByText('Weather calendar · Delhi', { exact: true }),
+    ).toBeVisible()
 })
 
 test('refreshes weather and displays the live US AQI scale', async ({
@@ -284,6 +658,12 @@ test('shows loading while the weather service is responding', async ({
   }
 
   await page.route(weatherApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('forecast_days') === '16') {
+      await fulfillDailyWeatherRange(route)
+      return
+    }
+
     await responseGate
     await route.fulfill({ json: currentWeather() })
   })
@@ -300,18 +680,18 @@ test('shows loading while the weather service is responding', async ({
       await page.reload()
     }
 
-    await expect(page.getByRole('status')).toContainText(
+    await expect(page.locator('.weather-state')).toContainText(
       'Loading current weather for Delhi',
     )
     const loadingCardHeight = await page
-      .locator('.dashboard-card')
-      .evaluate((card) => card.getBoundingClientRect().height)
+      .locator('.weather-panel')
+      .evaluate((panel) => panel.getBoundingClientRect().height)
 
     releaseResponse?.()
     await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
     const loadedCardHeight = await page
-      .locator('.dashboard-card')
-      .evaluate((card) => card.getBoundingClientRect().height)
+      .locator('.weather-panel')
+      .evaluate((panel) => panel.getBoundingClientRect().height)
 
     expect(Math.abs(loadedCardHeight - loadingCardHeight)).toBeLessThan(1)
   }
@@ -514,6 +894,7 @@ test('supports tab keyboard navigation and a narrow mobile viewport', async ({
   await expect(aqiTab).toBeFocused()
   await expect(aqiTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByText('115', { exact: true })).toBeVisible()
+  await expect(page.locator('#forecast-panel')).toBeHidden()
 
   await page.keyboard.press('ArrowLeft')
   await expect(weatherTab).toBeFocused()
@@ -734,6 +1115,112 @@ test('keeps a manual city choice when a pending location lookup completes late',
   await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
 })
 
+test('a late response for the previous calendar month cannot replace the viewed month', async ({
+  page,
+}) => {
+  await page.clock.install({
+    time: new Date('2026-11-14T03:30:00+05:30'),
+  })
+  await page.route(weatherApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('forecast_days') === '16') {
+      const dates = Array.from({ length: 16 }, (_, index) =>
+        addIsoDays('2026-11-14', index),
+      )
+      await route.fulfill({
+        json: {
+          daily: {
+            time: dates,
+            temperature_2m_max: dates.map(() => 29),
+            temperature_2m_min: dates.map(() => 18),
+            weather_code: dates.map(() => 1),
+          },
+        },
+      })
+      return
+    }
+    await route.fulfill({ json: currentWeather() })
+  })
+
+  let releasePreviousArchive: (() => void) | undefined
+  let markPreviousArchiveStarted: (() => void) | undefined
+  let markPreviousArchiveFinished: (() => void) | undefined
+  const previousArchiveGate = new Promise<void>((resolve) => {
+    releasePreviousArchive = resolve
+  })
+  const previousArchiveStarted = new Promise<void>((resolve) => {
+    markPreviousArchiveStarted = resolve
+  })
+  const previousArchiveFinished = new Promise<void>((resolve) => {
+    markPreviousArchiveFinished = resolve
+  })
+  await page.route(archiveApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('start_date') === '2016-11-01') {
+      markPreviousArchiveStarted?.()
+      try {
+        await previousArchiveGate
+        if (!route.request().failure()) {
+          await route.fulfill({
+            json: {
+              daily: {
+                time: ['2025-11-30'],
+                temperature_2m_max: [20],
+                temperature_2m_min: [10],
+                weather_code: [3],
+              },
+            },
+          })
+        }
+      } finally {
+        markPreviousArchiveFinished?.()
+      }
+      return
+    }
+
+    const dates = Array.from({ length: 31 }, (_, index) =>
+      `2025-12-${String(index + 1).padStart(2, '0')}`,
+    )
+    await route.fulfill({
+      json: {
+        daily: {
+          time: dates,
+          temperature_2m_max: dates.map(() => 28),
+          temperature_2m_min: dates.map(() => 17),
+          weather_code: dates.map(() => 2),
+        },
+      },
+    })
+  })
+
+  await page.goto('/')
+  await previousArchiveStarted
+  const previousArchiveCancelled = page.waitForEvent(
+    'requestfailed',
+    (request) =>
+      request.url().includes('archive-api.open-meteo.com') &&
+      request.url().includes('start_date=2016-11-01'),
+  )
+
+  await page.getByRole('button', { name: 'Next month' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'December 2026' }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.forecast-source-counts').getByText('31', { exact: true }),
+  ).toBeVisible()
+  await previousArchiveCancelled
+
+  releasePreviousArchive?.()
+  await previousArchiveFinished
+  await expect(
+    page.getByRole('heading', { name: 'December 2026' }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.forecast-source-counts').getByText('31', { exact: true }),
+  ).toBeVisible()
+})
+
 test('rejects invalid provider data rather than displaying weather', async ({
   page,
 }) => {
@@ -746,4 +1233,21 @@ test('rejects invalid provider data rather than displaying weather', async ({
   await page.goto('/')
   await expect(page.getByRole('alert')).toContainText('incomplete or invalid')
   await expect(page.getByLabel('26 degrees Celsius')).toHaveCount(0)
+})
+
+test('rejects invalid forecast details rather than displaying partial weather', async ({
+  page,
+}) => {
+  await page.route(weatherApiPattern, async (route) => {
+    const response = currentWeather()
+    response.hourly.precipitation_probability[0] = 120
+    await route.fulfill({ json: response })
+  })
+
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toContainText(
+    'incomplete or invalid forecast details',
+  )
+  await expect(page.getByLabel('26 degrees Celsius')).toHaveCount(0)
+  await expect(page.getByText('Chance of rain')).toHaveCount(0)
 })

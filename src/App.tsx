@@ -22,9 +22,17 @@ import {
   getUsAqiCategory,
   type CurrentAirQuality,
 } from './services/openMeteoAirQuality'
+import {
+  fetchMonthlyWeather,
+  formatForecastMonth,
+  getInitialForecastMonth,
+  shiftForecastMonth,
+  type MonthlyWeatherData,
+} from './services/openMeteoMonthly'
 import './App.css'
 
 const populationFormatter = new Intl.NumberFormat('en-IN')
+const forecastWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 type DashboardTab = 'weather' | 'aqi'
 type WeatherLoadState =
@@ -35,6 +43,38 @@ type AirQualityLoadState =
   | { cityId: string; status: 'loading' }
   | { cityId: string; status: 'success'; airQuality: CurrentAirQuality }
   | { cityId: string; status: 'error'; message: string }
+type MonthlyWeatherLoadState =
+  | { cityId: string; month: string; status: 'loading' }
+  | {
+      cityId: string
+      month: string
+      status: 'success'
+      weather: MonthlyWeatherData
+    }
+  | { cityId: string; month: string; status: 'error'; message: string }
+
+function formatForecastDayLabel(date: string): string {
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T00:00:00Z`))
+}
+
+function getForecastSourceLabel(
+  source: MonthlyWeatherData['days'][number]['source'],
+): string {
+  switch (source) {
+    case 'historical':
+      return 'Historical reanalysis'
+    case 'forecast':
+      return 'Forecast'
+    case 'typical':
+      return 'Typical conditions'
+    case 'unavailable':
+      return 'Data unavailable'
+  }
+}
 
 function getInitialCity(): CityDashboardData {
   const city = cityDashboardData.find((item) => item.id === 'delhi')
@@ -45,6 +85,7 @@ function getInitialCity(): CityDashboardData {
 }
 
 const initialCity = getInitialCity()
+const initialForecastMonth = getInitialForecastMonth()
 
 function App() {
   const [selectedCity, setSelectedCity] =
@@ -57,6 +98,8 @@ function App() {
     message: string
   }>({ status: 'idle', message: '' })
   const [activeTab, setActiveTab] = useState<DashboardTab>('weather')
+  const [forecastMonth, setForecastMonth] = useState(initialForecastMonth)
+  const [forecastRefreshVersion, setForecastRefreshVersion] = useState(0)
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [airQualityRefreshVersion, setAirQualityRefreshVersion] = useState(0)
   const [weatherState, setWeatherState] = useState<WeatherLoadState>({
@@ -67,10 +110,13 @@ function App() {
     cityId: initialCity.id,
     status: 'loading',
   })
-  const tabRefs = useRef<[HTMLButtonElement | null, HTMLButtonElement | null]>([
-    null,
-    null,
-  ])
+  const [monthlyWeatherState, setMonthlyWeatherState] =
+    useState<MonthlyWeatherLoadState>({
+      cityId: initialCity.id,
+      month: initialForecastMonth,
+      status: 'loading',
+    })
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([null, null])
   const locationRequestId = useRef(0)
 
   useEffect(() => {
@@ -184,9 +230,75 @@ function App() {
     selectedCity.longitude,
   ])
 
+  useEffect(() => {
+    if (activeTab !== 'weather') return
+
+    const controller = new AbortController()
+    let active = true
+    let timedOut = false
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true
+      controller.abort()
+    }, 30_000)
+
+    void Promise.resolve()
+      .then(() => {
+        if (!active) return null
+        return fetchMonthlyWeather(
+          selectedCity.latitude,
+          selectedCity.longitude,
+          forecastMonth,
+          controller.signal,
+        )
+      })
+      .then((weather) => {
+        if (!weather || !active) return
+        setMonthlyWeatherState({
+          cityId: selectedCity.id,
+          month: forecastMonth,
+          status: 'success',
+          weather,
+        })
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setMonthlyWeatherState({
+          cityId: selectedCity.id,
+          month: forecastMonth,
+          status: 'error',
+          message: timedOut
+            ? 'The monthly weather request timed out. Please try again.'
+            : error instanceof Error
+              ? error.message
+              : 'Unable to load the monthly weather. Please try again.',
+        })
+      })
+      .finally(() => window.clearTimeout(timeoutId))
+
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+      controller.abort()
+    }
+  }, [
+    activeTab,
+    forecastMonth,
+    forecastRefreshVersion,
+    selectedCity.id,
+    selectedCity.latitude,
+    selectedCity.longitude,
+  ])
+
   function selectTab(tab: DashboardTab) {
     if (tab === 'aqi' && activeTab !== 'aqi') {
       setAirQualityState({ cityId: selectedCity.id, status: 'loading' })
+    }
+    if (tab === 'weather' && activeTab !== 'weather') {
+      setMonthlyWeatherState({
+        cityId: selectedCity.id,
+        month: forecastMonth,
+        status: 'loading',
+      })
     }
     setActiveTab(tab)
   }
@@ -227,6 +339,11 @@ function App() {
       : null
   const selectedWeatherState =
     weatherState.cityId === selectedCity.id ? weatherState : null
+  const selectedMonthlyWeatherState =
+    monthlyWeatherState.cityId === selectedCity.id &&
+    monthlyWeatherState.month === forecastMonth
+      ? monthlyWeatherState
+      : null
   const normalizedSearch = citySearch.trim().toLocaleLowerCase()
   const hasMinimumSearchLength = normalizedSearch.length >= 3
   const matchingCities = hasMinimumSearchLength
@@ -268,7 +385,26 @@ function App() {
     setLocationState({ status: 'idle', message: '' })
     setWeatherState({ cityId: city.id, status: 'loading' })
     setAirQualityState({ cityId: city.id, status: 'loading' })
+    setMonthlyWeatherState({
+      cityId: city.id,
+      month: forecastMonth,
+      status: 'loading',
+    })
   }
+
+  function changeForecastMonth(offset: number) {
+    const month = shiftForecastMonth(forecastMonth, offset)
+    if (month < '1940-01') return
+    setForecastMonth(month)
+    setMonthlyWeatherState({
+      cityId: selectedCity.id,
+      month,
+      status: 'loading',
+    })
+  }
+
+  const forecastMonthStart = new Date(`${forecastMonth}-01T00:00:00Z`)
+  const forecastMonthDayOffset = forecastMonthStart.getUTCDay()
 
   function handleCitySearchKeyDown(
     event: KeyboardEvent<HTMLInputElement>,
@@ -581,7 +717,7 @@ function App() {
               type="button"
               role="tab"
               aria-selected={activeTab === 'weather'}
-              aria-controls="weather-panel"
+              aria-controls="weather-panel forecast-panel"
               tabIndex={activeTab === 'weather' ? 0 : -1}
               onClick={() => selectTab('weather')}
               onKeyDown={(event) => handleTabKeyDown(event, 0)}
@@ -614,7 +750,7 @@ function App() {
 
           <div
             id="weather-panel"
-            className="tab-panel"
+            className="tab-panel weather-panel"
             role="tabpanel"
             aria-labelledby="weather-tab"
             hidden={activeTab !== 'weather'}
@@ -639,6 +775,11 @@ function App() {
                     </p>
                     <p className="city-caption">
                       {selectedCity.city}, {selectedCity.state}
+                    </p>
+                    <p className="weather-range">
+                      High: {Math.round(selectedWeatherState.weather.temperatureMaxC)}°C
+                      <span aria-hidden="true"> · </span>
+                      Low: {Math.round(selectedWeatherState.weather.temperatureMinC)}°C
                     </p>
                   </>
                 ) : null}
@@ -714,6 +855,30 @@ function App() {
                           selectedWeatherState.weather.windDirectionDegrees,
                         )}{' '}
                         direction
+                      </p>
+                    </div>
+                  </article>
+                  <article className="detail-card">
+                    <span className="detail-icon feels-like-icon" aria-hidden="true">
+                      ≈
+                    </span>
+                    <div>
+                      <p className="detail-label">Feels like</p>
+                      <p className="detail-value">
+                        {Math.round(selectedWeatherState.weather.apparentTemperatureC)}
+                        <span>°C</span>
+                      </p>
+                    </div>
+                  </article>
+                  <article className="detail-card">
+                    <span className="detail-icon rain-icon" aria-hidden="true">
+                      ☂
+                    </span>
+                    <div>
+                      <p className="detail-label">Chance of rain</p>
+                      <p className="detail-value">
+                        {selectedWeatherState.weather.precipitationProbability}
+                        <span>%</span>
                       </p>
                     </div>
                   </article>
@@ -887,6 +1052,230 @@ function App() {
                   >
                     Refresh air quality
                   </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          <div
+            id="forecast-panel"
+            className="tab-panel forecast-panel"
+            role="region"
+            aria-labelledby="forecast-heading"
+            hidden={activeTab !== 'weather'}
+          >
+            <div className="forecast-heading">
+              <div>
+                <p className="panel-kicker">Weather calendar · {selectedCity.city}</p>
+                <h2 id="forecast-heading">
+                  {formatForecastMonth(forecastMonth)}
+                </h2>
+                <p className="forecast-intro">
+                  Up to 16 days of forecast data, followed by typical conditions
+                  based on the previous 10 years.
+                </p>
+              </div>
+              <div className="forecast-month-controls" aria-label="Choose month">
+                <button
+                  className="month-nav-button"
+                  type="button"
+                  aria-label="Previous month"
+                  disabled={forecastMonth <= '1940-01'}
+                  onClick={() => changeForecastMonth(-1)}
+                >
+                  <span aria-hidden="true">‹</span>
+                </button>
+                <button
+                  className="month-nav-button"
+                  type="button"
+                  aria-label="Next month"
+                  onClick={() => changeForecastMonth(1)}
+                >
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="forecast-legend" aria-label="Weather data sources">
+              <span className="forecast-legend-item historical">
+                Historical reanalysis
+              </span>
+              <span className="forecast-legend-item forecast">
+                Forecast · up to 16 days
+              </span>
+              <span className="forecast-legend-item typical">
+                Typical · 10-year average
+              </span>
+            </div>
+
+            {selectedMonthlyWeatherState?.status === 'loading' ? (
+              <div className="forecast-state" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                Loading {formatForecastMonth(forecastMonth)} weather for{' '}
+                {selectedCity.city}…
+              </div>
+            ) : null}
+
+            {selectedMonthlyWeatherState?.status === 'error' ? (
+              <div className="forecast-error" role="alert">
+                <p>{selectedMonthlyWeatherState.message}</p>
+                <button
+                  className="retry-button"
+                  type="button"
+                  onClick={() => {
+                    setMonthlyWeatherState({
+                      cityId: selectedCity.id,
+                      month: forecastMonth,
+                      status: 'loading',
+                    })
+                    setForecastRefreshVersion((version) => version + 1)
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : null}
+
+            {selectedMonthlyWeatherState?.status === 'success' ? (
+              <>
+                {selectedMonthlyWeatherState.weather.warnings.length > 0 ? (
+                  <div className="forecast-warnings" role="note">
+                    {selectedMonthlyWeatherState.weather.warnings.map(
+                      (warning) => (
+                        <p key={warning}>{warning}</p>
+                      ),
+                    )}
+                  </div>
+                ) : null}
+                <div className="forecast-layout">
+                  <div
+                    className="forecast-calendar"
+                    role="group"
+                    aria-label={`Daily weather calendar for ${formatForecastMonth(forecastMonth)}`}
+                  >
+                    {forecastWeekdays.map((weekday) => (
+                      <div className="forecast-weekday" key={weekday}>
+                        {weekday}
+                      </div>
+                    ))}
+                    {Array.from({ length: forecastMonthDayOffset }, (_, index) => (
+                      <div
+                        className="forecast-day-empty"
+                        key={`empty-${index}`}
+                        aria-hidden="true"
+                      />
+                    ))}
+                    {selectedMonthlyWeatherState.weather.days.map((day) => {
+                      const sourceLabel = getForecastSourceLabel(day.source)
+                      const dayDetails =
+                        day.temperatureMaxC !== undefined &&
+                        day.temperatureMinC !== undefined
+                          ? `High ${Math.round(day.temperatureMaxC)} degrees, low ${Math.round(day.temperatureMinC)} degrees Celsius`
+                          : 'Temperature unavailable'
+                      const sourceDetails =
+                        day.source === 'typical' && day.sampleCount !== undefined
+                          ? `, ${day.sampleCount}-year average`
+                          : ''
+                      return (
+                        <article
+                          className={`forecast-day forecast-day-${day.source}`}
+                          key={day.date}
+                          aria-label={`${formatForecastDayLabel(day.date)}, ${sourceLabel}${sourceDetails}, ${dayDetails}`}
+                        >
+                          <div className="forecast-day-header">
+                            <span className="forecast-date">
+                              {Number(day.date.slice(-2))}
+                            </span>
+                            <span className="forecast-source" aria-hidden="true">
+                              {day.source === 'historical'
+                                ? 'Past'
+                                : day.source === 'forecast'
+                                  ? 'Forecast'
+                                  : day.source === 'typical'
+                                    ? 'Avg'
+                                    : '—'}
+                            </span>
+                          </div>
+                          <div className="forecast-day-weather">
+                            <span className="forecast-day-icon" aria-hidden="true">
+                              {day.weatherCode === undefined
+                                ? '–'
+                                : getWeatherIcon(day.weatherCode)}
+                            </span>
+                            {day.temperatureMaxC !== undefined &&
+                            day.temperatureMinC !== undefined ? (
+                              <span className="forecast-temperatures">
+                                <span>
+                                  {Math.round(day.temperatureMaxC)}°
+                                </span>
+                                <span>
+                                  {Math.round(day.temperatureMinC)}°
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="forecast-unavailable">—</span>
+                            )}
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+
+                  <aside className="forecast-summary" aria-label="Monthly overview">
+                    <h3>Month overview</h3>
+                    <p className="forecast-summary-total">
+                      {selectedMonthlyWeatherState.weather.days.length} days
+                    </p>
+                    <dl className="forecast-source-counts">
+                      <div>
+                        <dt>Historical reanalysis</dt>
+                        <dd>
+                          {selectedMonthlyWeatherState.weather.sourceCounts.historical}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Forecast</dt>
+                        <dd>
+                          {selectedMonthlyWeatherState.weather.sourceCounts.forecast}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Typical conditions</dt>
+                        <dd>
+                          {selectedMonthlyWeatherState.weather.sourceCounts.typical}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Unavailable</dt>
+                        <dd>
+                          {selectedMonthlyWeatherState.weather.sourceCounts.unavailable}
+                        </dd>
+                      </div>
+                    </dl>
+                    <p className="forecast-summary-note">
+                      Historical values are modeled ERA5 reanalysis, not station
+                      observations. Typical values are date-matched averages from
+                      the previous 10 completed years, not a forecast.
+                    </p>
+                  </aside>
+                </div>
+                <div className="weather-meta forecast-meta">
+                  <a
+                    className="weather-attribution"
+                    href="https://open-meteo.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Weather data by Open-Meteo.com
+                  </a>
+                  <a
+                    className="weather-attribution"
+                    href="https://open-meteo.com/en/licence"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Data licence
+                  </a>
                 </div>
               </>
             ) : null}

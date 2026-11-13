@@ -8,8 +8,9 @@ description: Guidance for BreatheSafe's non-commercial Open-Meteo current weathe
 ## Approved scope
 
 - Replace sample weather for the 10 supported Indian cities with selected-city current weather.
-- Fetch temperature, relative humidity, WMO weather code, wind speed, and wind direction from Open-Meteo's Forecast API.
+- Fetch temperature, relative humidity, WMO weather code, wind speed and direction, apparent temperature, hourly precipitation probability, and daily high/low from Open-Meteo's Forecast API.
 - Fetch on initial load, city selection, and explicit manual refresh; do not poll or request unselected cities.
+- Monthly historical, forecast, and typical-weather calendar behavior is documented in `.agents/skills/monthly-weather-calendar/SKILL.md`.
 - Keep AQI implementation guidance in `.agents/skills/open-meteo-air-quality/SKILL.md`.
 - This project is intended for non-commercial use and uses Open-Meteo's free public endpoint. Commercial usage requires an appropriate Open-Meteo plan and customer endpoint.
 
@@ -24,11 +25,11 @@ description: Guidance for BreatheSafe's non-commercial Open-Meteo current weathe
 
 ## Acceptance criteria
 
-1. Initial load and selecting a supported city requests only that city's coordinates and renders validated current weather.
+1. Initial load and selecting a supported city requests only that city's coordinates and renders validated current weather, feels-like temperature, matching-hour rain probability, and local-day high/low.
 2. Manual refresh requests the selected city again; outdated requests cannot overwrite newer selection data.
 3. Loading, provider/network/invalid-response errors, and retry are understandable and accessible; failures do not show fabricated weather.
 4. Open-Meteo weather credit is linked on the weather panel.
-5. Playwright covers successful fetch, city change, stale-request cancellation, refresh, loading/error/retry, invalid responses, attribution, and mobile layout using mocked API responses.
+5. Playwright covers successful fetch, forecast details, city change, stale-request cancellation, refresh, loading/error/retry, invalid current and forecast responses, attribution, and mobile layout using mocked API responses.
 
 ## Verification
 
