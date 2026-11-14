@@ -286,6 +286,54 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
   ).toEqual(new Set(['18.5204,73.8567', '28.7041,77.1025']))
 })
 
+test('shows an illustration for each US AQI category', async ({ page }) => {
+  let usAqi = 25
+  await mockWeather(page)
+  await mockAirQuality(page, async (route) => {
+    await route.fulfill({ json: currentAirQuality({ us_aqi: usAqi }) })
+  })
+
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Air quality' }).click()
+
+  const categories = [
+    { value: 25, slug: 'good', label: 'Good' },
+    { value: 75, slug: 'moderate', label: 'Moderate' },
+    {
+      value: 125,
+      slug: 'unhealthy-for-sensitive-groups',
+      label: 'Unhealthy for Sensitive Groups',
+    },
+    { value: 175, slug: 'unhealthy', label: 'Unhealthy' },
+    { value: 250, slug: 'very-unhealthy', label: 'Very Unhealthy' },
+    { value: 350, slug: 'hazardous', label: 'Hazardous' },
+  ]
+
+  for (const [index, category] of categories.entries()) {
+    if (index > 0) {
+      usAqi = category.value
+      await page.getByRole('button', { name: 'Refresh air quality for Delhi' }).click()
+    }
+
+    await expect(page.locator('.aqi-overview')).toHaveAttribute(
+      'data-aqi-category',
+      category.slug,
+    )
+    await expect(page.locator('.aqi-category')).toHaveText(category.label)
+
+    const illustration = page.locator('.aqi-illustration')
+    await expect(illustration).toHaveAttribute(
+      'src',
+      `/aqi-${category.slug}.webp`,
+    )
+    await expect
+      .poll(() =>
+        illustration.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+      )
+      .toBeGreaterThan(0)
+  }
+})
+
 test('matches rain probability to the current hourly forecast interval', async ({
   page,
 }) => {

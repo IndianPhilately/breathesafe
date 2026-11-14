@@ -1055,6 +1055,36 @@
   min-height: 190px;
 }
 
+.aqi-overview[data-aqi-category='good'] {
+  --aqi-illustration-background: #edf6ef;
+  --aqi-illustration-color: #317b51;
+}
+
+.aqi-overview[data-aqi-category='moderate'] {
+  --aqi-illustration-background: #fbf6d8;
+  --aqi-illustration-color: #8a7200;
+}
+
+.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] {
+  --aqi-illustration-background: #fff0e2;
+  --aqi-illustration-color: #a65c12;
+}
+
+.aqi-overview[data-aqi-category='unhealthy'] {
+  --aqi-illustration-background: #fcebea;
+  --aqi-illustration-color: #ae423d;
+}
+
+.aqi-overview[data-aqi-category='very-unhealthy'] {
+  --aqi-illustration-background: #f3ebf5;
+  --aqi-illustration-color: #784b91;
+}
+
+.aqi-overview[data-aqi-category='hazardous'] {
+  --aqi-illustration-background: #f1e7ec;
+  --aqi-illustration-color: #803b65;
+}
+
 .aqi-value {
   margin: 0;
   color: #317b51;
@@ -1076,14 +1106,12 @@
 }
 
 .aqi-overview[data-aqi-category='good'] .aqi-value,
-.aqi-overview[data-aqi-category='good'] .aqi-category,
-.aqi-overview[data-aqi-category='good'] .aqi-gauge {
+.aqi-overview[data-aqi-category='good'] .aqi-category {
   color: #317b51;
 }
 
 .aqi-overview[data-aqi-category='moderate'] .aqi-value,
-.aqi-overview[data-aqi-category='moderate'] .aqi-category,
-.aqi-overview[data-aqi-category='moderate'] .aqi-gauge {
+.aqi-overview[data-aqi-category='moderate'] .aqi-category {
   color: #8a7200;
 }
 
@@ -1091,14 +1119,8 @@
   background: #f5efc9;
 }
 
-.aqi-overview[data-aqi-category='moderate'] .aqi-gauge {
-  border-right-color: #cabb6e;
-  border-bottom-color: #cabb6e;
-}
-
 .aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-value,
-.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-category,
-.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-gauge {
+.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-category {
   color: #a65c12;
 }
 
@@ -1106,14 +1128,8 @@
   background: #fff0dc;
 }
 
-.aqi-overview[data-aqi-category='unhealthy-for-sensitive-groups'] .aqi-gauge {
-  border-right-color: #dda15d;
-  border-bottom-color: #dda15d;
-}
-
 .aqi-overview[data-aqi-category='unhealthy'] .aqi-value,
-.aqi-overview[data-aqi-category='unhealthy'] .aqi-category,
-.aqi-overview[data-aqi-category='unhealthy'] .aqi-gauge {
+.aqi-overview[data-aqi-category='unhealthy'] .aqi-category {
   color: #ae423d;
 }
 
@@ -1121,14 +1137,8 @@
   background: #fbe6e4;
 }
 
-.aqi-overview[data-aqi-category='unhealthy'] .aqi-gauge {
-  border-right-color: #d08589;
-  border-bottom-color: #d08589;
-}
-
 .aqi-overview[data-aqi-category='very-unhealthy'] .aqi-value,
-.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-category,
-.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-gauge {
+.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-category {
   color: #784b91;
 }
 
@@ -1136,14 +1146,8 @@
   background: #f0e7f5;
 }
 
-.aqi-overview[data-aqi-category='very-unhealthy'] .aqi-gauge {
-  border-right-color: #a88abd;
-  border-bottom-color: #a88abd;
-}
-
 .aqi-overview[data-aqi-category='hazardous'] .aqi-value,
-.aqi-overview[data-aqi-category='hazardous'] .aqi-category,
-.aqi-overview[data-aqi-category='hazardous'] .aqi-gauge {
+.aqi-overview[data-aqi-category='hazardous'] .aqi-category {
   color: #803b65;
 }
 
@@ -1151,35 +1155,47 @@
   background: #f3e5ef;
 }
 
-.aqi-overview[data-aqi-category='hazardous'] .aqi-gauge {
-  border-right-color: #bd8bad;
-  border-bottom-color: #bd8bad;
-}
-
-.aqi-gauge {
+.aqi-illustration-frame {
   display: flex;
-  width: 138px;
-  height: 138px;
+  width: min(45vw, 208px);
+  height: 178px;
   flex: 0 0 auto;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 10px solid #dcefe1;
-  border-right-color: #8fc69d;
-  border-bottom-color: #8fc69d;
-  border-radius: 50%;
-  color: #38764d;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--aqi-illustration-background, #edf6ef);
+  box-shadow: inset 0 0 0 1px rgb(35 51 45 / 5%);
+  isolation: isolate;
 }
 
-.aqi-gauge span:first-child {
-  font-size: 15px;
+.aqi-illustration {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+}
+
+.aqi-illustration-caption {
+  display: flex;
+  min-height: 30px;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgb(255 255 255 / 52%);
+  color: var(--aqi-illustration-color, #38764d);
+  white-space: nowrap;
+}
+
+.aqi-illustration-caption span:first-child {
+  font-size: 11px;
   font-weight: 700;
 }
 
-.aqi-gauge span:last-child {
-  margin-top: 4px;
-  color: #829087;
-  font-size: 11px;
+.aqi-illustration-caption span:last-child {
+  font-size: 9px;
 }
 
 .pollutant-tag {
@@ -1402,14 +1418,24 @@
     margin-left: 0;
   }
 
-  .aqi-gauge {
-    width: 106px;
-    height: 106px;
-    border-width: 8px;
+  .aqi-illustration-frame {
+    width: min(34vw, 128px);
+    height: 142px;
+    border-radius: 18px;
   }
 
-  .aqi-gauge span:first-child {
-    font-size: 12px;
+  .aqi-illustration-caption {
+    min-height: 28px;
+    flex-basis: 28px;
+    gap: 4px;
+  }
+
+  .aqi-illustration-caption span:first-child {
+    font-size: 10px;
+  }
+
+  .aqi-illustration-caption span:last-child {
+    font-size: 8px;
   }
 
   .detail-grid {

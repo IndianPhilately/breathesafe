@@ -337,6 +337,7 @@ function App() {
     selectedAirQualityState?.status === 'success'
       ? getUsAqiCategory(Math.round(selectedAirQualityState.airQuality.usAqi))
       : null
+  const aqiIllustration = aqiCategory?.toLowerCase().replace(/\s+/g, '-') ?? null
   const selectedWeatherState =
     weatherState.cityId === selectedCity.id ? weatherState : null
   const selectedMonthlyWeatherState =
@@ -912,10 +913,20 @@ function App() {
                   </>
                 ) : null}
               </div>
-              <div className="aqi-gauge" aria-hidden="true">
-                <span>US AQI</span>
-                <span>model estimate</span>
-              </div>
+              {selectedAirQualityState?.status === 'success' &&
+              aqiIllustration ? (
+                <div className="aqi-illustration-frame" aria-hidden="true">
+                  <img
+                    className="aqi-illustration"
+                    src={`/aqi-${aqiIllustration}.webp`}
+                    alt=""
+                  />
+                  <div className="aqi-illustration-caption">
+                    <span>US AQI</span>
+                    <span>model estimate</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {selectedAirQualityState?.status === 'loading' ? (
