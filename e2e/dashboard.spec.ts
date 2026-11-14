@@ -69,10 +69,14 @@ function historicalAirQuality(asOf = new Date()) {
     hourly: {
       time,
       us_aqi: localHours.map((hour) => 20 + hour),
-      us_aqi_pm2_5: localHours.map((hour) => (hour >= 18 ? 175 : 80)),
-      us_aqi_pm10: localHours.map((hour) => (hour >= 18 ? 125 : 55)),
-      pm2_5: localHours.map((hour) => Number((5 + hour / 10).toFixed(1))),
-      pm10: localHours.map((hour) => 10 + hour),
+      pm2_5: localHours.map((hour) =>
+        hour >= 18
+          ? 60
+          : hour >= 9
+            ? 20
+            : Number((5 + hour / 10).toFixed(1)),
+      ),
+      pm10: localHours.map((hour) => (hour >= 18 ? 275 : 10 + hour)),
     },
   }
 }
@@ -387,7 +391,7 @@ test('opens the Air quality tab by default and loads selected-city data', async 
     {
       latitude: '28.7041',
       longitude: '77.1025',
-      hourly: 'us_aqi,us_aqi_pm2_5,us_aqi_pm10,pm2_5,pm10',
+      hourly: 'us_aqi,pm2_5,pm10',
       past_days: '92',
       forecast_days: '0',
       timezone: 'Asia/Kolkata',
@@ -395,7 +399,7 @@ test('opens the Air quality tab by default and loads selected-city data', async 
     {
       latitude: '18.5204',
       longitude: '73.8567',
-      hourly: 'us_aqi,us_aqi_pm2_5,us_aqi_pm10,pm2_5,pm10',
+      hourly: 'us_aqi,pm2_5,pm10',
       past_days: '92',
       forecast_days: '0',
       timezone: 'Asia/Kolkata',
@@ -435,11 +439,32 @@ test('charts history across ranges, pollutant measures, and chart styles', async
   await expect(page.getByRole('heading', { name: 'Air quality trend' })).toBeVisible()
   await expect(
     page.getByRole('img', {
+      name: 'Bar chart of AQI (US) for Delhi, 30 Days.',
+    }),
+  ).toBeVisible()
+  await expect(range).toHaveValue('30-days')
+  await expect(measure).toHaveValue('usAqi')
+  await expect(
+    page.getByText('Daily peaks · maximum modeled value for each local day'),
+  ).toBeVisible()
+  await expect(
+    page.getByText('Color key · U.S. AQI categories and ranges'),
+  ).toBeVisible()
+  const usAqiLegend = page.getByRole('list', {
+    name: 'U.S. AQI severity colors and ranges',
+  })
+  await expect(usAqiLegend).toContainText('Good 0–50')
+  await expect(usAqiLegend).toContainText('Moderate 51–100')
+  await expect(usAqiLegend).toContainText('Unhealthy for Sensitive Groups 101–150')
+  await expect(usAqiLegend).toContainText('Unhealthy 151–200')
+  await expect(usAqiLegend).toContainText('Very Unhealthy 201–300')
+  await expect(usAqiLegend).toContainText('Hazardous 301+')
+  await range.selectOption('24-hours')
+  await expect(
+    page.getByRole('img', {
       name: 'Bar chart of AQI (US) for Delhi, 24 Hours.',
     }),
   ).toBeVisible()
-  await expect(range).toHaveValue('24-hours')
-  await expect(measure).toHaveValue('usAqi')
   const yAxisOverlapsFirstBar = await page
     .locator('.aqi-history-chart')
     .evaluate((svg) => {
@@ -471,10 +496,22 @@ test('charts history across ranges, pollutant measures, and chart styles', async
   ).toBeVisible()
 
   await measure.selectOption('pm25')
+  await expect(
+    page.getByText('Color key · PM2.5 concentration bands (µg/m³)'),
+  ).toBeVisible()
+  const pm25Legend = page.getByRole('list', {
+    name: 'PM2.5 concentration bands in micrograms per cubic meter',
+  })
+  await expect(pm25Legend).toContainText('Good 0.0–9.0')
+  await expect(pm25Legend).toContainText('Moderate 9.1–35.4')
+  await expect(pm25Legend).toContainText('Unhealthy for Sensitive Groups 35.5–55.4')
+  await expect(pm25Legend).toContainText('Unhealthy 55.5–125.4')
+  await expect(pm25Legend).toContainText('Very Unhealthy 125.5–225.4')
+  await expect(pm25Legend).toContainText('Hazardous 225.5+')
   const pm25BarColors = await page
     .locator('.aqi-history-chart rect')
     .evaluateAll((bars) => bars.map((bar) => bar.getAttribute('fill')))
-  expect(pm25BarColors).toContain('#b9a94f')
+  expect(pm25BarColors).toContain('#6fa77d')
   expect(pm25BarColors).toContain('#c66a62')
   await measure.selectOption('usAqi')
 
@@ -490,9 +527,14 @@ test('charts history across ranges, pollutant measures, and chart styles', async
   await measure.selectOption('pm25')
   await expect(measure).toHaveValue('pm25')
   await expect(
+    page.getByText(
+      'Bands follow U.S. AQI concentration breakpoints; official AQI uses 24-hour averages, while this chart shows modeled samples or daily peaks.',
+    ),
+  ).toBeVisible()
+  await expect(
     page
       .locator('.aqi-history-screen-reader-table')
-      .getByText('7.3 µg/m³', { exact: true })
+      .getByText('60.0 µg/m³', { exact: true })
       .first(),
   ).toBeVisible()
   await expect(page.locator('.aqi-history-chart rect').first()).toHaveAttribute(
@@ -500,19 +542,32 @@ test('charts history across ranges, pollutant measures, and chart styles', async
     '#c66a62',
   )
   await measure.selectOption('pm10')
+  await expect(
+    page.getByText('Color key · PM10 concentration bands (µg/m³)'),
+  ).toBeVisible()
+  await expect(page.locator('.aqi-history-screen-reader-table')).toContainText(
+    'PM10 concentration category',
+  )
   await expect(page.locator('.aqi-history-chart rect').first()).toHaveAttribute(
     'fill',
-    '#d18b50',
+    '#c66a62',
   )
+  await range.selectOption('24-hours')
+  const pm10BarColors = await page
+    .locator('.aqi-history-chart rect')
+    .evaluateAll((bars) => bars.map((bar) => bar.getAttribute('fill')))
+  expect(pm10BarColors).toContain('#6fa77d')
+  expect(pm10BarColors).toContain('#c66a62')
+  await range.selectOption('7-days')
   const severityLegend = page.getByRole('list', {
-    name: 'U.S. AQI severity colors and ranges',
+    name: 'PM10 concentration bands in micrograms per cubic meter',
   })
-  await expect(severityLegend).toContainText('Good 0–50')
-  await expect(severityLegend).toContainText('Moderate 51–100')
-  await expect(severityLegend).toContainText('Unhealthy for Sensitive Groups 101–150')
-  await expect(severityLegend).toContainText('Unhealthy 151–200')
-  await expect(severityLegend).toContainText('Very Unhealthy 201–300')
-  await expect(severityLegend).toContainText('Hazardous 301+')
+  await expect(severityLegend).toContainText('Good 0–54')
+  await expect(severityLegend).toContainText('Moderate 55–154')
+  await expect(severityLegend).toContainText('Unhealthy for Sensitive Groups 155–254')
+  await expect(severityLegend).toContainText('Unhealthy 255–354')
+  await expect(severityLegend).toContainText('Very Unhealthy 355–424')
+  await expect(severityLegend).toContainText('Hazardous 425+')
 
   await page.getByRole('button', { name: 'Line chart' }).click()
   await expect(
@@ -587,36 +642,6 @@ test('shows an empty history state when all requested values are missing', async
   )
 })
 
-test('uses a neutral chart color when pollutant severity data is unavailable', async ({
-  page,
-}) => {
-  await page.clock.install({
-    time: new Date('2026-11-14T03:30:00+05:30'),
-  })
-  await mockWeather(page)
-  await mockAirQuality(page, undefined, async (route) => {
-    await route.fulfill({
-      json: {
-        hourly: {
-          time: ['2026-11-14T03:00'],
-          us_aqi: [115],
-          pm2_5: [80],
-          pm10: [90],
-        },
-      },
-    })
-  })
-
-  await page.goto('/')
-  await page.getByLabel('Measure').selectOption('pm25')
-  await expect(page.locator('.aqi-history-chart rect')).toHaveAttribute(
-    'fill',
-    '#8b9890',
-  )
-  await expect(
-    page.locator('.aqi-history-screen-reader-table tbody'),
-  ).toContainText('Unavailable')
-})
 
 test('shows an illustration for each US AQI category', async ({ page }) => {
   let usAqi = 25

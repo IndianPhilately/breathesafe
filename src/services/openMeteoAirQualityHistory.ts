@@ -5,8 +5,6 @@ export type AirQualityHistoryMetric = 'usAqi' | 'pm25' | 'pm10'
 export type AirQualityHistoryPoint = {
   time: string
   usAqi: number | null
-  usAqiPm25: number | null
-  usAqiPm10: number | null
   pm25: number | null
   pm10: number | null
 }
@@ -15,8 +13,6 @@ type OpenMeteoAirQualityHistoryResponse = {
   hourly?: {
     time?: unknown
     us_aqi?: unknown
-    us_aqi_pm2_5?: unknown
-    us_aqi_pm10?: unknown
     pm2_5?: unknown
     pm10?: unknown
   }
@@ -36,7 +32,7 @@ export async function fetchAirQualityHistory(
   url.search = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
-    hourly: 'us_aqi,us_aqi_pm2_5,us_aqi_pm10,pm2_5,pm10',
+    hourly: 'us_aqi,pm2_5,pm10',
     past_days: '92',
     forecast_days: '0',
     timezone: LOCAL_TIME_ZONE,
@@ -84,16 +80,12 @@ export async function fetchAirQualityHistory(
   }
 
   const usAqi = parseSeries(hourly.us_aqi, times.length, 1000)
-  const usAqiPm25 = parseSeries(hourly.us_aqi_pm2_5, times.length, 1000)
-  const usAqiPm10 = parseSeries(hourly.us_aqi_pm10, times.length, 1000)
   const pm25 = parseSeries(hourly.pm2_5, times.length, 10_000)
   const pm10 = parseSeries(hourly.pm10, times.length, 10_000)
 
   return times.map((time, index) => ({
     time,
     usAqi: usAqi[index],
-    usAqiPm25: usAqiPm25[index],
-    usAqiPm10: usAqiPm10[index],
     pm25: pm25[index],
     pm10: pm10[index],
   }))

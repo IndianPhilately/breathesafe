@@ -20,6 +20,7 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and pollutant dat
 - Use maintained city-center coordinates and India local time (`Asia/Kolkata`).
 - Treat current air-quality values as model-based estimates, not local sensor or monitoring-station measurements.
 - The India CAMS Global history series is 3-hourly and the public endpoint permits up to 92 past days. Use actual samples for 24 hours, daily peaks for 7 days through 3 months, and keep 1-year/10-year ranges disabled with an availability explanation.
+- Color history-chart PM2.5/PM10 by the matching concentration bands in µg/m³, not AQI sub-index data. Clarify that those categories are indicative because official U.S. AQI uses 24-hour averages.
 - Do not interpolate missing history values or render them as zero; omit unavailable measures and show a clear empty state when a selected range has no values.
 - Display pollutant concentrations in Open-Meteo's supplied `μg/m³` units; do not relabel or convert gas values to `ppb`.
 - Validate API responses. Show loading, recoverable error/retry, and model-time states. Never substitute demo AQI when live data fails.

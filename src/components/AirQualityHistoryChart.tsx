@@ -20,7 +20,6 @@ type ChartMode = 'bar' | 'line'
 type ChartPoint = {
   time: string
   value: number
-  severityAqi: number | null
 }
 type HistoryLoadState =
   | { status: 'loading' }
@@ -49,16 +48,60 @@ const metricOptions: Array<{
 ]
 
 const severityColors = [
-  { category: 'Good', range: '0–50', color: '#6fa77d' },
-  { category: 'Moderate', range: '51–100', color: '#b9a94f' },
+  {
+    category: 'Good',
+    aqiRange: '0–50',
+    pm25Range: '0.0–9.0',
+    pm25UpperBound: 9,
+    pm10Range: '0–54',
+    pm10UpperBound: 54,
+    color: '#6fa77d',
+  },
+  {
+    category: 'Moderate',
+    aqiRange: '51–100',
+    pm25Range: '9.1–35.4',
+    pm25UpperBound: 35.4,
+    pm10Range: '55–154',
+    pm10UpperBound: 154,
+    color: '#b9a94f',
+  },
   {
     category: 'Unhealthy for Sensitive Groups',
-    range: '101–150',
+    aqiRange: '101–150',
+    pm25Range: '35.5–55.4',
+    pm25UpperBound: 55.4,
+    pm10Range: '155–254',
+    pm10UpperBound: 254,
     color: '#d18b50',
   },
-  { category: 'Unhealthy', range: '151–200', color: '#c66a62' },
-  { category: 'Very Unhealthy', range: '201–300', color: '#9473a4' },
-  { category: 'Hazardous', range: '301+', color: '#875b78' },
+  {
+    category: 'Unhealthy',
+    aqiRange: '151–200',
+    pm25Range: '55.5–125.4',
+    pm25UpperBound: 125.4,
+    pm10Range: '255–354',
+    pm10UpperBound: 354,
+    color: '#c66a62',
+  },
+  {
+    category: 'Very Unhealthy',
+    aqiRange: '201–300',
+    pm25Range: '125.5–225.4',
+    pm25UpperBound: 225.4,
+    pm10Range: '355–424',
+    pm10UpperBound: 424,
+    color: '#9473a4',
+  },
+  {
+    category: 'Hazardous',
+    aqiRange: '301+',
+    pm25Range: '225.5+',
+    pm25UpperBound: Number.POSITIVE_INFINITY,
+    pm10Range: '425+',
+    pm10UpperBound: Number.POSITIVE_INFINITY,
+    color: '#875b78',
+  },
 ]
 
 const chartWidth = 760
@@ -87,20 +130,6 @@ function getPointTime(time: string): number {
   return new Date(`${time}:00+05:30`).getTime()
 }
 
-function getSeverityAqi(
-  point: AirQualityHistoryPoint,
-  metric: AirQualityHistoryMetric,
-): number | null {
-  switch (metric) {
-    case 'usAqi':
-      return point.usAqi
-    case 'pm25':
-      return point.usAqiPm25
-    case 'pm10':
-      return point.usAqiPm10
-  }
-}
-
 function getChartPoints(
   points: AirQualityHistoryPoint[],
   range: ChartRange,
@@ -118,13 +147,7 @@ function getChartPoints(
       const value = point[metric]
       return value === null
         ? []
-        : [
-            {
-              time: point.time,
-              value,
-              severityAqi: getSeverityAqi(point, metric),
-            },
-          ]
+        : [{ time: point.time, value }]
     })
   }
 
@@ -139,7 +162,6 @@ function getChartPoints(
       dailyPeaks.set(date, {
         time: point.time,
         value,
-        severityAqi: getSeverityAqi(point, metric),
       })
     }
   }
@@ -184,9 +206,16 @@ function formatAxisTime(time: string, range: ChartRange): string {
 function getPointCategory(
   point: ChartPoint,
   metric: AirQualityHistoryMetric,
-): string | null {
-  const aqi = metric === 'usAqi' ? point.value : point.severityAqi
-  return aqi === null ? null : getUsAqiCategory(aqi)
+): string {
+  if (metric === 'usAqi') return getUsAqiCategory(point.value)
+
+  const concentration =
+    metric === 'pm25' ? Math.floor(point.value * 10) / 10 : Math.floor(point.value)
+  const band = severityColors.find((item) =>
+    concentration <=
+    (metric === 'pm25' ? item.pm25UpperBound : item.pm10UpperBound),
+  )
+  return band?.category ?? 'Hazardous'
 }
 
 function getPointColor(
@@ -206,7 +235,11 @@ function getPointTooltip(
   unit: string,
 ): string {
   const category = getPointCategory(point, metric)
-  return `${formatPointTime(point.time, range)}: ${formatMetricValue(point.value, metric)} ${unit} · ${category ? `${category} (US AQI)` : 'severity unavailable'}`
+  const categoryType =
+    metric === 'usAqi'
+      ? 'U.S. AQI'
+      : `${metric === 'pm25' ? 'PM2.5' : 'PM10'} concentration band`
+  return `${formatPointTime(point.time, range)}: ${formatMetricValue(point.value, metric)} ${unit} · ${category} (${categoryType})`
 }
 
 function getTickIndexes(length: number): number[] {
@@ -226,7 +259,7 @@ export function AirQualityHistoryChart({
   longitude,
   refreshVersion,
 }: AirQualityHistoryChartProps) {
-  const [range, setRange] = useState<ChartRange>('24-hours')
+  const [range, setRange] = useState<ChartRange>('30-days')
   const [metric, setMetric] = useState<AirQualityHistoryMetric>('usAqi')
   const [chartMode, setChartMode] = useState<ChartMode>('bar')
   const [retryVersion, setRetryVersion] = useState(0)
@@ -299,6 +332,18 @@ export function AirQualityHistoryChart({
     'AQI (US)'
   const metricUnit =
     metricOptions.find((option) => option.value === selectedMetric)?.unit ?? 'AQI'
+  const severityLegendTitle =
+    selectedMetric === 'usAqi'
+      ? 'Color key · U.S. AQI categories and ranges'
+      : `Color key · ${metricLabel} concentration bands (µg/m³)`
+  const severityLegendDescription =
+    selectedMetric === 'usAqi'
+      ? 'Colors use the displayed U.S. AQI values.'
+      : 'Bands follow U.S. AQI concentration breakpoints; official AQI uses 24-hour averages, while this chart shows modeled samples or daily peaks.'
+  const severityLegendLabel =
+    selectedMetric === 'usAqi'
+      ? 'U.S. AQI severity colors and ranges'
+      : `${metricLabel} concentration bands in micrograms per cubic meter`
   const isDailyPeakRange = range !== '24-hours'
   const maximumValue = chartPoints.reduce(
     (maximum, point) => Math.max(maximum, point.value),
@@ -570,32 +615,29 @@ export function AirQualityHistoryChart({
 
           <div className="aqi-chart-legend">
             <div>
-              <p className="aqi-chart-legend-title">
-                Color key · U.S. AQI categories and ranges
-              </p>
-              <p className="aqi-chart-legend-note">
-                Ranges are U.S. AQI values. PM bars use their pollutant-specific AQI index.
-              </p>
+              <p className="aqi-chart-legend-title">{severityLegendTitle}</p>
+              <p className="aqi-chart-legend-note">{severityLegendDescription}</p>
             </div>
-            <ul aria-label="U.S. AQI severity colors and ranges">
-              {severityColors.map(({ category, range: categoryRange, color }) => (
-                <li key={category}>
-                  <span
-                    className="aqi-chart-legend-swatch"
-                    style={{ backgroundColor: color }}
-                    aria-hidden="true"
-                  />
-                  {category} <span className="aqi-chart-legend-range">{categoryRange}</span>
-                </li>
-              ))}
-              <li>
-                <span
-                  className="aqi-chart-legend-swatch"
-                  style={{ backgroundColor: '#8b9890' }}
-                  aria-hidden="true"
-                />
-                Unavailable
-              </li>
+            <ul aria-label={severityLegendLabel}>
+              {severityColors.map((item) => {
+                const categoryRange =
+                  selectedMetric === 'usAqi'
+                    ? item.aqiRange
+                    : selectedMetric === 'pm25'
+                      ? item.pm25Range
+                      : item.pm10Range
+                return (
+                  <li key={item.category}>
+                    <span
+                      className="aqi-chart-legend-swatch"
+                      style={{ backgroundColor: item.color }}
+                      aria-hidden="true"
+                    />
+                    {item.category}{' '}
+                    <span className="aqi-chart-legend-range">{categoryRange}</span>
+                  </li>
+                )
+              })}
             </ul>
           </div>
 
@@ -608,7 +650,11 @@ export function AirQualityHistoryChart({
               <tr>
                 <th scope="col">Time (IST)</th>
                 <th scope="col">{metricLabel}</th>
-                <th scope="col">U.S. AQI category</th>
+                <th scope="col">
+                  {selectedMetric === 'usAqi'
+                    ? 'U.S. AQI category'
+                    : `${metricLabel} concentration category`}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -618,7 +664,7 @@ export function AirQualityHistoryChart({
                   <td>
                     {formatMetricValue(point.value, selectedMetric)} {metricUnit}
                   </td>
-                  <td>{getPointCategory(point, selectedMetric) ?? 'Unavailable'}</td>
+                  <td>{getPointCategory(point, selectedMetric)}</td>
                 </tr>
               ))}
             </tbody>
