@@ -1,6 +1,6 @@
 ---
 name: open-meteo-air-quality
-description: Guidance for BreatheSafe's live Open-Meteo US AQI and particulate data integration.
+description: Guidance for BreatheSafe's live Open-Meteo US AQI and pollutant data integration.
 ---
 
 # Open-Meteo Air Quality
@@ -8,7 +8,8 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and particulate d
 ## Approved scope
 
 - Replace illustrative AQI and particulate fixtures with selected-city current air-quality data from Open-Meteo's Air Quality API.
-- Display Open-Meteo's US AQI, a category using the US AQI bands, PM2.5, PM10, and the provider model time.
+- Display Open-Meteo's US AQI, a category using the US AQI bands, PM2.5, PM10, carbon monoxide, nitrogen dioxide, sulphur dioxide, ozone, and the provider model time.
+- Open the dashboard on the Air quality tab by default.
 - Request data only for the selected city while its Air quality tab is open; do not poll or request unselected cities.
 - This project is intended for non-commercial use and uses Open-Meteo's free public endpoint. Commercial usage requires an appropriate Open-Meteo plan.
 
@@ -17,6 +18,7 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and particulate d
 - Open-Meteo supplies US AQI and European AQI, not CPCB India's AQI. Label the displayed scale as US AQI; never call it Indian/CPCB AQI.
 - Use maintained city-center coordinates and India local time (`Asia/Kolkata`).
 - Treat current air-quality values as model-based estimates, not local sensor or monitoring-station measurements.
+- Display pollutant concentrations in Open-Meteo's supplied `μg/m³` units; do not relabel or convert gas values to `ppb`.
 - Validate API responses. Show loading, recoverable error/retry, and model-time states. Never substitute demo AQI when live data fails.
 - Abort superseded requests and impose a finite request timeout.
 - Display an Open-Meteo attribution link beside the air-quality data and link the CC BY 4.0 licence.
@@ -24,11 +26,11 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and particulate d
 
 ## Acceptance criteria
 
-1. Opening Air quality requests only the selected city's coordinates and renders validated US AQI and particulate data.
+1. The dashboard opens on Air quality, requests only the selected city's coordinates, and renders validated US AQI plus PM2.5, PM10, carbon monoxide, nitrogen dioxide, sulphur dioxide, and ozone.
 2. Changing city or reopening/refreshing Air quality fetches the selected city; stale responses cannot replace its data.
 3. Loading, provider/network/invalid-response errors, and retry are understandable and accessible; failures do not show fabricated data.
 4. The UI distinguishes US AQI from CPCB India AQI, describes model-based data, and shows attribution and licence links.
-5. Playwright covers successful fetch, city selection, request scope, error/retry, invalid responses, attribution, and mobile layout using mocked API responses.
+5. Playwright covers successful pollutant fetch and display, city selection, request scope, error/retry, invalid responses, attribution, and the six-card desktop/tablet/mobile layout using mocked API responses.
 
 ## Verification
 

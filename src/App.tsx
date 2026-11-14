@@ -34,6 +34,25 @@ import './App.css'
 const populationFormatter = new Intl.NumberFormat('en-IN')
 const forecastWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+type AirQualityPollutantKey = Exclude<
+  keyof CurrentAirQuality,
+  'usAqi' | 'modelTime'
+>
+type AirQualityPollutant = {
+  key: AirQualityPollutantKey
+  symbol: string
+  label: string
+}
+
+const airQualityPollutants: AirQualityPollutant[] = [
+  { key: 'pm25', symbol: 'PM2.5', label: 'Fine particles' },
+  { key: 'pm10', symbol: 'PM10', label: 'Inhalable particles' },
+  { key: 'carbonMonoxide', symbol: 'CO', label: 'Carbon monoxide' },
+  { key: 'sulphurDioxide', symbol: 'SO₂', label: 'Sulfur dioxide' },
+  { key: 'nitrogenDioxide', symbol: 'NO₂', label: 'Nitrogen dioxide' },
+  { key: 'ozone', symbol: 'O₃', label: 'Ozone' },
+]
+
 type DashboardTab = 'weather' | 'aqi'
 type WeatherLoadState =
   | { cityId: string; status: 'loading' }
@@ -97,7 +116,7 @@ function App() {
     status: 'idle' | 'loading' | 'success' | 'error'
     message: string
   }>({ status: 'idle', message: '' })
-  const [activeTab, setActiveTab] = useState<DashboardTab>('weather')
+  const [activeTab, setActiveTab] = useState<DashboardTab>('aqi')
   const [forecastMonth, setForecastMonth] = useState(initialForecastMonth)
   const [forecastRefreshVersion, setForecastRefreshVersion] = useState(0)
   const [refreshVersion, setRefreshVersion] = useState(0)
@@ -957,30 +976,33 @@ function App() {
 
             {selectedAirQualityState?.status === 'success' ? (
               <>
-                <div className="detail-grid">
-                  <article className="detail-card pollutant-card">
-                    <span className="pollutant-tag">PM2.5</span>
-                    <div>
-                      <p className="detail-label">Fine particles · Model estimate</p>
-                      <p className="detail-value">
-                        {selectedAirQualityState.airQuality.pm25.toFixed(1)}
-                        <span> µg/m³</span>
-                      </p>
-                    </div>
-                  </article>
-                  <article className="detail-card pollutant-card">
-                    <span className="pollutant-tag">PM10</span>
-                    <div>
-                      <p className="detail-label">
-                        Inhalable particles · Model estimate
-                      </p>
-                      <p className="detail-value">
-                        {selectedAirQualityState.airQuality.pm10.toFixed(1)}
-                        <span> µg/m³</span>
-                      </p>
-                    </div>
-                  </article>
-                </div>
+                <section
+                  className="pollutant-section"
+                  aria-labelledby="pollutants-heading"
+                >
+                  <h2 className="pollutant-heading" id="pollutants-heading">
+                    Major air pollutants
+                  </h2>
+                  <div className="detail-grid pollutant-grid">
+                    {airQualityPollutants.map(({ key, symbol, label }) => (
+                      <article
+                        className="detail-card pollutant-card"
+                        key={key}
+                      >
+                        <span className="pollutant-tag">{symbol}</span>
+                        <div>
+                          <p className="detail-label">
+                            {label} · Model estimate
+                          </p>
+                          <p className="detail-value">
+                            {selectedAirQualityState.airQuality[key].toFixed(1)}
+                            <span> µg/m³</span>
+                          </p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
 
                 <div className="weather-meta">
                   <p className="observation-time">

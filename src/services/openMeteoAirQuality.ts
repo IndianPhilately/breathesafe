@@ -2,6 +2,10 @@ export type CurrentAirQuality = {
   usAqi: number
   pm25: number
   pm10: number
+  carbonMonoxide: number
+  nitrogenDioxide: number
+  sulphurDioxide: number
+  ozone: number
   modelTime: string
 }
 
@@ -11,6 +15,10 @@ type OpenMeteoAirQualityResponse = {
     us_aqi?: unknown
     pm2_5?: unknown
     pm10?: unknown
+    carbon_monoxide?: unknown
+    nitrogen_dioxide?: unknown
+    sulphur_dioxide?: unknown
+    ozone?: unknown
   }
   error?: unknown
   reason?: unknown
@@ -28,7 +36,8 @@ export async function fetchCurrentAirQuality(
   url.search = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
-    current: 'us_aqi,pm2_5,pm10',
+    current:
+      'us_aqi,pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone',
     timezone: LOCAL_TIME_ZONE,
   }).toString()
 
@@ -71,6 +80,10 @@ export async function fetchCurrentAirQuality(
   const usAqi = current.us_aqi
   const pm25 = current.pm2_5
   const pm10 = current.pm10
+  const carbonMonoxide = current.carbon_monoxide
+  const nitrogenDioxide = current.nitrogen_dioxide
+  const sulphurDioxide = current.sulphur_dioxide
+  const ozone = current.ozone
   const modelTime = current.time
 
   if (
@@ -78,21 +91,28 @@ export async function fetchCurrentAirQuality(
     !Number.isFinite(usAqi) ||
     usAqi < 0 ||
     usAqi > 1000 ||
-    typeof pm25 !== 'number' ||
-    !Number.isFinite(pm25) ||
-    pm25 < 0 ||
-    pm25 > 10_000 ||
-    typeof pm10 !== 'number' ||
-    !Number.isFinite(pm10) ||
-    pm10 < 0 ||
-    pm10 > 10_000 ||
+    !isValidConcentration(pm25) ||
+    !isValidConcentration(pm10) ||
+    !isValidConcentration(carbonMonoxide, 100_000) ||
+    !isValidConcentration(nitrogenDioxide) ||
+    !isValidConcentration(sulphurDioxide) ||
+    !isValidConcentration(ozone) ||
     typeof modelTime !== 'string' ||
     !isLocalDateTime(modelTime)
   ) {
     throw new Error('The air-quality service returned incomplete or invalid current conditions.')
   }
 
-  return { usAqi, pm25, pm10, modelTime }
+  return {
+    usAqi,
+    pm25,
+    pm10,
+    carbonMonoxide,
+    nitrogenDioxide,
+    sulphurDioxide,
+    ozone,
+    modelTime,
+  }
 }
 
 export function getUsAqiCategory(aqi: number): string {
@@ -123,5 +143,14 @@ function isLocalDateTime(value: string): boolean {
     parsed.getUTCDate() === day &&
     parsed.getUTCHours() === hour &&
     parsed.getUTCMinutes() === minute
+  )
+}
+
+function isValidConcentration(value: unknown, maximum = 10_000): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= maximum
   )
 }

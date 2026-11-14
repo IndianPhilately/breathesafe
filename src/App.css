@@ -542,6 +542,17 @@
   gap: 14px;
 }
 
+.pollutant-heading {
+  margin: 0 0 14px;
+  color: #314a3c;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.pollutant-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .detail-card {
   display: flex;
   min-height: 96px;
@@ -1227,6 +1238,12 @@
 .city-data-attribution a {
   color: #47745b;
   text-underline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .pollutant-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .page-footer {

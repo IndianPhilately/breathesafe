@@ -42,6 +42,10 @@ function currentAirQuality(overrides: Record<string, unknown> = {}) {
       us_aqi: 115,
       pm2_5: 40.4,
       pm10: 46.1,
+      carbon_monoxide: 667,
+      nitrogen_dioxide: 17.4,
+      sulphur_dioxide: 15.3,
+      ozone: 89,
       ...overrides,
     },
   }
@@ -109,6 +113,7 @@ test.beforeEach(async ({ page }) => {
   await page.route(archiveApiPattern, async (route) => {
     await fulfillDailyWeatherRange(route)
   })
+  await mockAirQuality(page)
 })
 
 async function selectCityBySearch(page: Page, cityName: string) {
@@ -168,7 +173,7 @@ test('city fixtures use the linked 2011 population threshold with valid coordina
   })
 })
 
-test('loads selected-city weather and requests live AQI only when its tab opens', async ({
+test('opens the Air quality tab by default and loads selected-city data', async ({
   page,
 }) => {
   const requestedLocations: Array<{ latitude: string | null; longitude: string | null }> =
@@ -208,8 +213,31 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
 
   await page.goto('/')
 
-  await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
+  const airQualityTab = page.getByRole('tab', { name: 'Air quality' })
+  await expect(airQualityTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByText('115', { exact: true })).toBeVisible()
+  await expect.poll(() => requestedAirQualityRequests.length).toBe(1)
   await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
+  await expect(page.getByText('Unhealthy for Sensitive Groups')).toBeVisible()
+  await expect(page.getByText('40.4 µg/m³')).toBeVisible()
+  await expect(page.getByText('46.1 µg/m³')).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Major air pollutants' }),
+  ).toBeVisible()
+  await expect(page.getByText('667.0 µg/m³')).toBeVisible()
+  await expect(page.getByText('17.4 µg/m³')).toBeVisible()
+  await expect(page.getByText('15.3 µg/m³')).toBeVisible()
+  await expect(page.getByText('89.0 µg/m³')).toBeVisible()
+  await expect(page.getByText(/Model time 14 Nov 2026, 1:30 am IST/)).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Air quality data by Open-Meteo' }),
+  ).toHaveAttribute('href', 'https://open-meteo.com/')
+  await expect(
+    page.getByRole('link', { name: 'CC BY 4.0 licence' }),
+  ).toHaveAttribute('href', 'https://open-meteo.com/en/licence')
+
+  await page.getByRole('tab', { name: 'Weather' }).click()
+  await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
   await expect(page.getByText('Partly cloudy')).toBeVisible()
   await expect(page.getByText('68%', { exact: true })).toBeVisible()
   await expect(page.getByText('13 km/h', { exact: false })).toBeVisible()
@@ -248,36 +276,24 @@ test('loads selected-city weather and requests live AQI only when its tab opens'
   await expect(
     page.getByText('Air quality · Model-based estimates'),
   ).toBeVisible()
-  expect(requestedAirQualityRequests).toHaveLength(0)
-
-  expect(requestedAirQualityRequests).toHaveLength(0)
-
-  await page.getByRole('tab', { name: 'Air quality' }).click()
-  await expect(page.getByText('115', { exact: true })).toBeVisible()
-  await expect(page.getByText('Unhealthy for Sensitive Groups')).toBeVisible()
-  await expect(page.getByText('40.4 µg/m³')).toBeVisible()
-  await expect(page.getByText('46.1 µg/m³')).toBeVisible()
-  await expect(page.getByText(/Model time 14 Nov 2026, 1:30 am IST/)).toBeVisible()
-  await expect(
-    page.getByRole('link', { name: 'Air quality data by Open-Meteo' }),
-  ).toHaveAttribute('href', 'https://open-meteo.com/')
-  await expect(
-    page.getByRole('link', { name: 'CC BY 4.0 licence' }),
-  ).toHaveAttribute('href', 'https://open-meteo.com/en/licence')
 
   await selectCityBySearch(page, 'Pune')
+  await page.getByRole('tab', { name: 'Air quality' }).click()
   await expect.poll(() => requestedAirQualityRequests.length).toBe(2)
+  await expect(page.getByText('115', { exact: true })).toBeVisible()
   expect(requestedAirQualityRequests).toEqual([
     {
       latitude: '28.7041',
       longitude: '77.1025',
-      current: 'us_aqi,pm2_5,pm10',
+      current:
+        'us_aqi,pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone',
       timezone: 'Asia/Kolkata',
     },
     {
       latitude: '18.5204',
       longitude: '73.8567',
-      current: 'us_aqi,pm2_5,pm10',
+      current:
+        'us_aqi,pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone',
       timezone: 'Asia/Kolkata',
     },
   ])
@@ -343,6 +359,7 @@ test('matches rain probability to the current hourly forecast interval', async (
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
   await expect(
     page.getByRole('article').filter({ hasText: 'Chance of rain' }),
@@ -409,6 +426,7 @@ test('shows the monthly calendar in the weather tab with historical, forecast, a
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   const calendar = page.getByLabel('Daily weather calendar for November 2026')
   await expect(calendar).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Weather' })).toHaveAttribute(
@@ -546,6 +564,7 @@ test('navigates months and reloads the calendar for the selected city on mobile'
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await expect(
     page.getByLabel('Daily weather calendar for November 2026'),
   ).toBeVisible()
@@ -648,6 +667,7 @@ test('reports monthly source failures and retries without losing the city contex
     })
 
     await page.goto('/')
+    await page.getByRole('tab', { name: 'Weather' }).click()
     await expect(page.getByRole('alert')).toContainText(
       'Historical and typical weather data could not be loaded',
     )
@@ -688,6 +708,7 @@ test('refreshes weather and displays the live US AQI scale', async ({
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
   const requestsBeforeRefresh = requestCount
   nextTemperature = 31
@@ -695,22 +716,24 @@ test('refreshes weather and displays the live US AQI scale', async ({
   await expect(page.getByLabel('31 degrees Celsius')).toBeVisible()
   expect(requestCount).toBeGreaterThan(requestsBeforeRefresh)
 
+  nextAqi = 120
   await page.getByRole('tab', { name: 'Air quality' }).click()
   await expect(
     page.getByRole('tabpanel', { name: 'Air quality' }),
   ).toBeVisible()
-  await expect(page.getByText('115', { exact: true })).toBeVisible()
+  await expect(page.getByText('120', { exact: true })).toBeVisible()
   await expect(page.getByText('Unhealthy for Sensitive Groups')).toBeVisible()
   await expect(page.getByText('US AQI', { exact: true })).toBeVisible()
   await expect(
     page.getByRole('link', { name: 'Air quality data by Open-Meteo' }),
   ).toBeVisible()
 
+  const airQualityRequestsBeforeRefresh = airQualityRequestCount
   nextAqi = 151
   await page.getByRole('button', { name: 'Refresh air quality for Delhi' }).click()
   await expect(page.getByText('151', { exact: true })).toBeVisible()
   await expect(page.getByText('Unhealthy', { exact: true })).toBeVisible()
-  expect(airQualityRequestCount).toBe(2)
+  expect(airQualityRequestCount).toBe(airQualityRequestsBeforeRefresh + 1)
 })
 
 test('shows weather provider errors and retries without invented weather data', async ({
@@ -727,6 +750,7 @@ test('shows weather provider errors and retries without invented weather data', 
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await expect(page.getByRole('alert')).toContainText('HTTP 503')
   await expect(page.getByLabel('26 degrees Celsius')).toHaveCount(0)
 
@@ -768,6 +792,7 @@ test('shows loading while the weather service is responding', async ({
     } else {
       await page.reload()
     }
+    await page.getByRole('tab', { name: 'Weather' }).click()
 
     await expect(page.locator('.weather-state')).toContainText(
       'Loading current weather for Delhi',
@@ -822,6 +847,7 @@ test('a late response for the previous city cannot replace the selected city', a
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await delhiRequestStarted
   const previousCityRequestFailed = page.waitForEvent(
     'requestfailed',
@@ -903,6 +929,49 @@ test('rejects invalid air-quality data rather than displaying it', async ({
   await expect(page.getByText('115', { exact: true })).toHaveCount(0)
 })
 
+test('rejects invalid pollutant concentrations rather than showing partial data', async ({
+  page,
+}) => {
+  await mockWeather(page)
+  await mockAirQuality(page, async (route) => {
+    await route.fulfill({
+      json: currentAirQuality({ carbon_monoxide: null }),
+    })
+  })
+
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Air quality' }).click()
+  await expect(page.getByRole('alert')).toContainText('incomplete or invalid')
+  await expect(page.getByText('115', { exact: true })).toHaveCount(0)
+  await expect(
+    page.getByRole('region', { name: 'Major air pollutants' }),
+  ).toHaveCount(0)
+})
+
+test('shows six pollutant cards in a responsive grid', async ({ page }) => {
+  await mockWeather(page)
+  await mockAirQuality(page)
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'Air quality' }).click()
+
+  const pollutants = page.getByRole('region', { name: 'Major air pollutants' })
+  await expect(pollutants).toBeVisible()
+  await expect(pollutants.getByRole('article')).toHaveCount(6)
+
+  const grid = pollutants.locator('.pollutant-grid')
+  for (const [width, expectedColumns] of [
+    [1280, 3],
+    [800, 2],
+    [375, 1],
+  ]) {
+    await page.setViewportSize({ width, height: 900 })
+    const columnCount = await grid.evaluate(
+      (element) => getComputedStyle(element).gridTemplateColumns.split(' ').length,
+    )
+    expect(columnCount).toBe(expectedColumns)
+  }
+})
+
 test('a late AQI response for a previous city cannot replace the selection', async ({
   page,
 }) => {
@@ -970,7 +1039,6 @@ test('supports tab keyboard navigation and a narrow mobile viewport', async ({
   await mockAirQuality(page)
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/')
-  await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
   await expect(
     page.getByText('Air quality · Model-based estimates'),
   ).toBeVisible()
@@ -978,7 +1046,15 @@ test('supports tab keyboard navigation and a narrow mobile viewport', async ({
   const weatherTab = page.getByRole('tab', { name: 'Weather' })
   const aqiTab = page.getByRole('tab', { name: 'Air quality' })
 
-  await weatherTab.focus()
+  await expect(aqiTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByText('115', { exact: true })).toBeVisible()
+
+  await aqiTab.focus()
+  await page.keyboard.press('ArrowLeft')
+  await expect(weatherTab).toBeFocused()
+  await expect(weatherTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
+
   await page.keyboard.press('ArrowRight')
   await expect(aqiTab).toBeFocused()
   await expect(aqiTab).toHaveAttribute('aria-selected', 'true')
@@ -1284,6 +1360,7 @@ test('a late response for the previous calendar month cannot replace the viewed 
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await previousArchiveStarted
   const previousArchiveCancelled = page.waitForEvent(
     'requestfailed',
@@ -1321,6 +1398,7 @@ test('rejects invalid provider data rather than displaying weather', async ({
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await expect(page.getByRole('alert')).toContainText('incomplete or invalid')
   await expect(page.getByLabel('26 degrees Celsius')).toHaveCount(0)
 })
@@ -1335,6 +1413,7 @@ test('rejects invalid forecast details rather than displaying partial weather', 
   })
 
   await page.goto('/')
+  await page.getByRole('tab', { name: 'Weather' }).click()
   await expect(page.getByRole('alert')).toContainText(
     'incomplete or invalid forecast details',
   )
