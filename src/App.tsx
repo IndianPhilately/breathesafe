@@ -29,6 +29,7 @@ import {
   shiftForecastMonth,
   type MonthlyWeatherData,
 } from './services/openMeteoMonthly'
+import { AirQualityHistoryChart } from './components/AirQualityHistoryChart'
 import './App.css'
 
 const populationFormatter = new Intl.NumberFormat('en-IN')
@@ -1052,6 +1053,15 @@ function App() {
                     ))}
                   </div>
                 </section>
+
+                <AirQualityHistoryChart
+                  active={activeTab === 'aqi'}
+                  cityId={selectedCity.id}
+                  cityName={selectedCity.city}
+                  latitude={selectedCity.latitude}
+                  longitude={selectedCity.longitude}
+                  refreshVersion={airQualityRefreshVersion}
+                />
 
                 <div className="weather-meta">
                   <a

@@ -570,6 +570,286 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.aqi-history {
+  margin-top: 26px;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid #e3ebe5;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #fbfdfb 0%, #f4f8f5 100%);
+}
+
+.aqi-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.aqi-history-header .panel-kicker {
+  margin-bottom: 6px;
+}
+
+.aqi-history-header h2 {
+  margin: 0;
+  color: #2b4135;
+  font-size: clamp(20px, 3vw, 25px);
+  letter-spacing: -0.04em;
+}
+
+.aqi-history-intro {
+  margin: 7px 0 0;
+  color: #718177;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.aqi-history-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.aqi-history-control {
+  display: grid;
+  gap: 5px;
+  color: #617267;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.aqi-history-control select {
+  min-width: 126px;
+  min-height: 44px;
+  padding: 0 30px 0 11px;
+  border: 1px solid #d6e1d9;
+  border-radius: 9px;
+  background: #fff;
+  color: #314a3c;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.aqi-history-control select:focus-visible,
+.aqi-chart-mode button:focus-visible {
+  outline: 3px solid #75b8ff;
+  outline-offset: 2px;
+}
+
+.aqi-chart-mode {
+  display: flex;
+  min-height: 44px;
+  padding: 3px;
+  border: 1px solid #d6e1d9;
+  border-radius: 10px;
+  background: #eef3ef;
+}
+
+.aqi-chart-mode button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #65756a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.aqi-chart-mode button.is-selected {
+  background: #fff;
+  color: #315d42;
+  box-shadow: 0 1px 3px rgb(34 67 48 / 12%);
+}
+
+.aqi-history-availability,
+.aqi-history-period,
+.aqi-history-source {
+  color: #718177;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.aqi-history-availability {
+  margin: 12px 0 0;
+}
+
+.aqi-history-period {
+  margin: 20px 0 12px;
+  color: #4c6858;
+  font-weight: 650;
+}
+
+.aqi-history-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.aqi-history-summary-card {
+  display: grid;
+  min-width: 142px;
+  gap: 3px;
+  padding: 10px 13px;
+  border: 1px solid #e3ebe5;
+  border-radius: 11px;
+  background: rgb(255 255 255 / 78%);
+}
+
+.aqi-history-summary-card > span {
+  color: #718177;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.aqi-history-summary-card strong {
+  color: #2f4d3a;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.aqi-history-summary-card small {
+  color: #718177;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.aqi-history-summary-card time {
+  color: #718177;
+  font-size: 10px;
+}
+
+.aqi-history-chart-wrap {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e6ede8;
+  border-radius: 13px;
+  background: rgb(255 255 255 / 75%);
+}
+
+.aqi-history-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 8px 8px 2px;
+}
+
+.aqi-chart-gridline {
+  stroke: #e8eee9;
+  stroke-width: 1;
+}
+
+.aqi-chart-axis-label {
+  fill: #76857b;
+  font-family: inherit;
+  font-size: 11px;
+}
+
+.aqi-chart-line {
+  fill: none;
+  stroke: #85938a;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.aqi-chart-legend {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.aqi-chart-legend-title,
+.aqi-chart-legend-note {
+  margin: 0;
+  color: #4c6858;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.aqi-chart-legend-note {
+  margin-top: 2px;
+  color: #718177;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.aqi-chart-legend ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 13px;
+  margin: 0;
+  padding: 0;
+  color: #617267;
+  font-size: 10px;
+  list-style: none;
+}
+
+.aqi-chart-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.aqi-chart-legend-swatch {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+}
+
+.aqi-history-state,
+.aqi-history-error {
+  display: flex;
+  min-height: 100px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #e3ebe5;
+  border-radius: 13px;
+  background: rgb(255 255 255 / 75%);
+  color: #586d60;
+  font-size: 13px;
+  text-align: center;
+}
+
+.aqi-history-error {
+  border-color: #f0d7d4;
+  background: #fff8f7;
+  color: #8d3932;
+}
+
+.aqi-history-error p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.aqi-history-source {
+  margin: 10px 0 0;
+}
+
+.aqi-history-screen-reader-table {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  table-layout: fixed;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .detail-card {
   display: flex;
   min-height: 96px;
@@ -1223,7 +1503,7 @@
 .aqi-illustration-frame {
   display: flex;
   width: min(45vw, 208px);
-  height: 178px;
+  height: 208px;
   flex: 0 0 auto;
   flex-direction: column;
   overflow: hidden;
@@ -1238,7 +1518,7 @@
   width: 100%;
   min-height: 0;
   flex: 1;
-  object-fit: cover;
+  object-fit: contain;
   mix-blend-mode: multiply;
 }
 
@@ -1297,6 +1577,14 @@
 @media (max-width: 900px) {
   .pollutant-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aqi-history-header {
+    flex-direction: column;
+  }
+
+  .aqi-history-controls {
+    justify-content: flex-start;
   }
 }
 
@@ -1412,6 +1700,38 @@
     gap: 12px;
   }
 
+  .aqi-history {
+    border-radius: 14px;
+  }
+
+  .aqi-history-controls {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aqi-history-control select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .aqi-chart-mode {
+    grid-column: 1 / -1;
+  }
+
+  .aqi-chart-mode button {
+    flex: 1;
+  }
+
+  .aqi-history-summary-card {
+    min-width: 0;
+    flex: 1 1 120px;
+  }
+
+  .aqi-chart-axis-label {
+    font-size: 12px;
+  }
+
   .forecast-calendar {
     gap: 3px;
     padding: 8px;
@@ -1493,6 +1813,10 @@
     width: min(34vw, 128px);
     height: 142px;
     border-radius: 18px;
+  }
+
+  .aqi-illustration {
+    object-fit: cover;
   }
 
   .aqi-illustration-caption {

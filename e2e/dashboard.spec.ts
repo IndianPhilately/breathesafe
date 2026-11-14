@@ -51,6 +51,32 @@ function currentAirQuality(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function historicalAirQuality(asOf = new Date()) {
+  const interval = 3 * 60 * 60 * 1000
+  const indiaOffset = 5.5 * 60 * 60 * 1000
+  const latestSample = Math.floor(asOf.getTime() / interval) * interval
+  const sampleCount = 92 * 8 + 1
+  const time = Array.from({ length: sampleCount }, (_, index) =>
+    new Date(
+      latestSample - (sampleCount - 1 - index) * interval + indiaOffset,
+    )
+      .toISOString()
+      .slice(0, 16),
+  )
+  const localHours = time.map((value) => Number(value.slice(11, 13)))
+
+  return {
+    hourly: {
+      time,
+      us_aqi: localHours.map((hour) => 20 + hour),
+      us_aqi_pm2_5: localHours.map((hour) => (hour >= 18 ? 175 : 80)),
+      us_aqi_pm10: localHours.map((hour) => (hour >= 18 ? 125 : 55)),
+      pm2_5: localHours.map((hour) => Number((5 + hour / 10).toFixed(1))),
+      pm10: localHours.map((hour) => 10 + hour),
+    },
+  }
+}
+
 function addIsoDays(date: string, offset: number) {
   const value = new Date(`${date}T00:00:00Z`)
   value.setUTCDate(value.getUTCDate() + offset)
@@ -98,8 +124,20 @@ async function mockWeather(page: Page, response?: (route: Route) => Promise<void
 async function mockAirQuality(
   page: Page,
   response?: (route: Route) => Promise<void>,
+  historyResponse?: (route: Route) => Promise<void>,
 ) {
   await page.route(airQualityApiPattern, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.has('hourly')) {
+      if (historyResponse) {
+        await historyResponse(route)
+        return
+      }
+
+      await route.fulfill({ json: historicalAirQuality() })
+      return
+    }
+
     if (response) {
       await response(route)
       return
@@ -185,6 +223,14 @@ test('opens the Air quality tab by default and loads selected-city data', async 
     current: string | null
     timezone: string | null
   }> = []
+  const requestedHistoryRequests: Array<{
+    latitude: string | null
+    longitude: string | null
+    hourly: string | null
+    past_days: string | null
+    forecast_days: string | null
+    timezone: string | null
+  }> = []
   await mockWeather(page, async (route) => {
     const url = new URL(route.request().url())
     requestedLocations.push({
@@ -200,16 +246,33 @@ test('opens the Air quality tab by default and loads selected-city data', async 
     })
     await route.fulfill({ json: currentWeather() })
   })
-  await mockAirQuality(page, async (route) => {
-    const url = new URL(route.request().url())
-    requestedAirQualityRequests.push({
-      latitude: url.searchParams.get('latitude'),
-      longitude: url.searchParams.get('longitude'),
-      current: url.searchParams.get('current'),
-      timezone: url.searchParams.get('timezone'),
-    })
-    await route.fulfill({ json: currentAirQuality() })
-  })
+  await mockAirQuality(
+    page,
+    async (route) => {
+      const url = new URL(route.request().url())
+      requestedAirQualityRequests.push({
+        latitude: url.searchParams.get('latitude'),
+        longitude: url.searchParams.get('longitude'),
+        current: url.searchParams.get('current'),
+        timezone: url.searchParams.get('timezone'),
+      })
+      await route.fulfill({ json: currentAirQuality() })
+    },
+    async (route) => {
+      const url = new URL(route.request().url())
+      requestedHistoryRequests.push({
+        latitude: url.searchParams.get('latitude'),
+        longitude: url.searchParams.get('longitude'),
+        hourly: url.searchParams.get('hourly'),
+        past_days: url.searchParams.get('past_days'),
+        forecast_days: url.searchParams.get('forecast_days'),
+        timezone: url.searchParams.get('timezone'),
+      })
+      await route.fulfill({
+        json: historicalAirQuality(new Date('2026-11-14T03:30:00+05:30')),
+      })
+    },
+  )
 
   await page.goto('/')
 
@@ -228,7 +291,9 @@ test('opens the Air quality tab by default and loads selected-city data', async 
   await expect(page.getByText('115', { exact: true })).toBeVisible()
   await expect.poll(() => requestedAirQualityRequests.length).toBe(1)
   await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
-  await expect(page.getByText('Unhealthy for Sensitive Groups')).toBeVisible()
+  await expect(
+    page.locator('.aqi-category').getByText('Unhealthy for Sensitive Groups'),
+  ).toBeVisible()
   await expect(page.getByText('40.4 µg/m³')).toBeVisible()
   await expect(page.getByText('46.1 µg/m³')).toBeVisible()
   await expect(
@@ -245,6 +310,10 @@ test('opens the Air quality tab by default and loads selected-city data', async 
   await expect(page.getByText('89.0 µg/m³')).toBeVisible()
   await expect(page.getByText(/Model time 14 Nov 2026, 1:30 am IST/)).toBeVisible()
   await expect(
+    page.getByRole('heading', { name: 'Air quality trend' }),
+  ).toBeVisible()
+  await expect.poll(() => requestedHistoryRequests.length).toBe(1)
+  await expect(
     page.getByRole('link', { name: 'Air quality data by Open-Meteo' }),
   ).toHaveAttribute('href', 'https://open-meteo.com/')
   await expect(
@@ -253,6 +322,7 @@ test('opens the Air quality tab by default and loads selected-city data', async 
 
   await page.getByRole('tab', { name: 'Weather' }).click()
   await expect(page.getByLabel('26 degrees Celsius')).toBeVisible()
+  expect(requestedHistoryRequests).toHaveLength(1)
   await expect(page.getByText('Partly cloudy')).toBeVisible()
   await expect(page.getByText('68%', { exact: true })).toBeVisible()
   await expect(page.getByText('13 km/h', { exact: false })).toBeVisible()
@@ -295,6 +365,7 @@ test('opens the Air quality tab by default and loads selected-city data', async 
   await selectCityBySearch(page, 'Pune')
   await page.getByRole('tab', { name: 'Air quality' }).click()
   await expect.poll(() => requestedAirQualityRequests.length).toBe(2)
+  await expect.poll(() => requestedHistoryRequests.length).toBe(2)
   await expect(page.getByText('115', { exact: true })).toBeVisible()
   expect(requestedAirQualityRequests).toEqual([
     {
@@ -312,9 +383,200 @@ test('opens the Air quality tab by default and loads selected-city data', async 
       timezone: 'Asia/Kolkata',
     },
   ])
+  expect(requestedHistoryRequests).toEqual([
+    {
+      latitude: '28.7041',
+      longitude: '77.1025',
+      hourly: 'us_aqi,us_aqi_pm2_5,us_aqi_pm10,pm2_5,pm10',
+      past_days: '92',
+      forecast_days: '0',
+      timezone: 'Asia/Kolkata',
+    },
+    {
+      latitude: '18.5204',
+      longitude: '73.8567',
+      hourly: 'us_aqi,us_aqi_pm2_5,us_aqi_pm10,pm2_5,pm10',
+      past_days: '92',
+      forecast_days: '0',
+      timezone: 'Asia/Kolkata',
+    },
+  ])
   expect(
     new Set(requestedLocations.map(({ latitude, longitude }) => `${latitude},${longitude}`)),
   ).toEqual(new Set(['18.5204,73.8567', '28.7041,77.1025']))
+})
+
+test('charts history across ranges, pollutant measures, and chart styles', async ({
+  page,
+}) => {
+  const asOf = new Date('2026-11-14T03:30:00+05:30')
+  await page.clock.install({ time: asOf })
+  await page.setViewportSize({ width: 375, height: 812 })
+  await mockWeather(page)
+  await mockAirQuality(page, undefined, async (route) => {
+    await route.fulfill({ json: historicalAirQuality(asOf) })
+  })
+
+  await page.goto('/')
+
+  const range = page.getByLabel('Time range')
+  const measure = page.getByLabel('Measure')
+  const chartData = page.locator('.aqi-history-screen-reader-table tbody tr')
+  await expect(range).toHaveCSS('font-size', '14px')
+  await expect(range).toHaveCSS('font-weight', '600')
+  await expect(range).toHaveCSS('min-height', '44px')
+  const controlFont = await range.evaluate(
+    (element) => getComputedStyle(element).fontFamily,
+  )
+  const bodyFont = await page
+    .locator('body')
+    .evaluate((element) => getComputedStyle(element).fontFamily)
+  expect(controlFont).toBe(bodyFont)
+  await expect(page.getByRole('heading', { name: 'Air quality trend' })).toBeVisible()
+  await expect(
+    page.getByRole('img', {
+      name: 'Bar chart of AQI (US) for Delhi, 25 Hours.',
+    }),
+  ).toBeVisible()
+  await expect(range).toHaveValue('25-hours')
+  await expect(measure).toHaveValue('usAqi')
+  const recentSampleCount = await chartData.count()
+  expect(recentSampleCount).toBeGreaterThanOrEqual(8)
+  expect(recentSampleCount).toBeLessThanOrEqual(9)
+  await expect(
+    page.getByText('Actual 3-hour model samples · last 25 hours'),
+  ).toBeVisible()
+
+  await range.selectOption('7-days')
+  await expect(
+    page.getByText('Daily peaks · maximum modeled value for each local day'),
+  ).toBeVisible()
+  const sevenDayRows = await chartData.count()
+  expect(sevenDayRows).toBeGreaterThanOrEqual(7)
+  expect(sevenDayRows).toBeLessThanOrEqual(8)
+  await expect(chartData.getByText('43 AQI', { exact: true }).first()).toBeVisible()
+
+  await measure.selectOption('pm25')
+  await expect(measure).toHaveValue('pm25')
+  await expect(
+    page
+      .locator('.aqi-history-screen-reader-table')
+      .getByText('7.3 µg/m³', { exact: true })
+      .first(),
+  ).toBeVisible()
+  await expect(page.locator('.aqi-history-chart rect').first()).toHaveAttribute(
+    'fill',
+    '#c66a62',
+  )
+  await measure.selectOption('pm10')
+  await expect(page.locator('.aqi-history-chart rect').first()).toHaveAttribute(
+    'fill',
+    '#d18b50',
+  )
+  await expect(page.getByText('U.S. AQI categories')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Line chart' }).click()
+  await expect(
+    page.getByRole('img', { name: 'Line chart of PM10 for Delhi, 7 Days.' }),
+  ).toBeVisible()
+
+  await range.selectOption('3-months')
+  const threeMonthRows = await chartData.count()
+  expect(threeMonthRows).toBeGreaterThan(85)
+  expect(threeMonthRows).toBeLessThan(95)
+  await expect(page.locator('option[value="1-year"]')).toBeDisabled()
+  await expect(page.locator('option[value="10-years"]')).toBeDisabled()
+  await expect(
+    page.getByText(/up to 92 past days, so 1 Year and 10 Years are unavailable/),
+  ).toBeVisible()
+
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+  expect(hasHorizontalOverflow).toBe(false)
+})
+
+test('retries failed history without hiding current air quality', async ({
+  page,
+}) => {
+  let historyRequestCount = 0
+  await mockWeather(page)
+  await mockAirQuality(page, undefined, async (route) => {
+    historyRequestCount += 1
+    if (historyRequestCount === 1) {
+      await route.fulfill({ status: 503, body: 'Unavailable' })
+      return
+    }
+
+    await route.fulfill({ json: historicalAirQuality() })
+  })
+
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toContainText('HTTP 503')
+  await expect(page.getByText('115', { exact: true })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Retry history' }).click()
+  await expect(
+    page.getByRole('img', { name: /Bar chart of AQI \(US\) for Delhi/ }),
+  ).toBeVisible()
+  expect(historyRequestCount).toBe(2)
+})
+
+test('shows an empty history state when all requested values are missing', async ({
+  page,
+}) => {
+  await page.clock.install({
+    time: new Date('2026-11-14T03:30:00+05:30'),
+  })
+  await mockWeather(page)
+  await mockAirQuality(page, undefined, async (route) => {
+    await route.fulfill({
+      json: {
+        hourly: {
+          time: ['2026-11-14T03:00'],
+          us_aqi: [null],
+          pm2_5: [null],
+          pm10: [null],
+        },
+      },
+    })
+  })
+
+  await page.goto('/')
+  await expect(page.getByRole('status')).toContainText(
+    'No AQI (US) data is available for this range.',
+  )
+})
+
+test('uses a neutral chart color when pollutant severity data is unavailable', async ({
+  page,
+}) => {
+  await page.clock.install({
+    time: new Date('2026-11-14T03:30:00+05:30'),
+  })
+  await mockWeather(page)
+  await mockAirQuality(page, undefined, async (route) => {
+    await route.fulfill({
+      json: {
+        hourly: {
+          time: ['2026-11-14T03:00'],
+          us_aqi: [115],
+          pm2_5: [80],
+          pm10: [90],
+        },
+      },
+    })
+  })
+
+  await page.goto('/')
+  await page.getByLabel('Measure').selectOption('pm25')
+  await expect(page.locator('.aqi-history-chart rect')).toHaveAttribute(
+    'fill',
+    '#8b9890',
+  )
+  await expect(
+    page.locator('.aqi-history-screen-reader-table tbody'),
+  ).toContainText('Unavailable')
 })
 
 test('shows an illustration for each US AQI category', async ({ page }) => {
@@ -395,6 +657,16 @@ test('shows an illustration for each US AQI category', async ({ page }) => {
       )
       .toBeGreaterThan(0)
   }
+
+  const illustration = page.locator('.aqi-illustration')
+  await expect(illustration).toHaveCSS('object-fit', 'contain')
+  const desktopImageHeight = await illustration.evaluate(
+    (image) => image.getBoundingClientRect().height,
+  )
+  expect(desktopImageHeight).toBeGreaterThanOrEqual(170)
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  await expect(illustration).toHaveCSS('object-fit', 'cover')
 
   const guidance = page.locator('.aqi-guidance')
   await expect(guidance.locator('summary')).toHaveText(
@@ -784,7 +1056,9 @@ test('refreshes weather and displays the live US AQI scale', async ({
     page.getByRole('tabpanel', { name: 'Air quality' }),
   ).toBeVisible()
   await expect(page.getByText('120', { exact: true })).toBeVisible()
-  await expect(page.getByText('Unhealthy for Sensitive Groups')).toBeVisible()
+  await expect(
+    page.locator('.aqi-category').getByText('Unhealthy for Sensitive Groups'),
+  ).toBeVisible()
   await expect(page.getByText('US AQI', { exact: true })).toBeVisible()
   await expect(
     page.getByRole('link', { name: 'Air quality data by Open-Meteo' }),
@@ -794,7 +1068,7 @@ test('refreshes weather and displays the live US AQI scale', async ({
   nextAqi = 151
   await page.getByRole('button', { name: 'Refresh air quality for Delhi' }).click()
   await expect(page.getByText('151', { exact: true })).toBeVisible()
-  await expect(page.getByText('Unhealthy', { exact: true })).toBeVisible()
+  await expect(page.locator('.aqi-category')).toHaveText('Unhealthy')
   expect(airQualityRequestCount).toBe(airQualityRequestsBeforeRefresh + 1)
 })
 
