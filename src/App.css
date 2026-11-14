@@ -1,4 +1,6 @@
 .dashboard {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
   min-height: 100svh;
   color: #23332d;
@@ -300,6 +302,7 @@
 }
 
 .main-content {
+  flex: 1 0 auto;
   width: min(100% - 48px, 960px);
   margin: 0 auto;
   padding: clamp(36px, 7vw, 78px) 0 48px;
@@ -571,6 +574,7 @@
 }
 
 .aqi-history {
+  position: relative;
   margin-top: 26px;
   padding: clamp(16px, 3vw, 24px);
   border: 1px solid #e3ebe5;
@@ -848,8 +852,13 @@
 
 .aqi-history-screen-reader-table {
   position: absolute;
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
   table-layout: fixed;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);

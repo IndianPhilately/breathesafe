@@ -194,6 +194,30 @@ test('aligns the larger header brand and city picker with dashboard content', as
   }
 })
 
+test('keeps the page footer at the viewport bottom on short air-quality pages', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 3200 })
+  await mockWeather(page)
+  await page.goto('/')
+
+  await expect(
+    page.getByRole('img', { name: /Bar chart of AQI \(US\) for Delhi/ }),
+  ).toBeVisible()
+
+  const footerLayout = await page.evaluate(() => {
+    const footer = document.querySelector('.page-footer')!.getBoundingClientRect()
+    return {
+      bottom: footer.bottom,
+      viewportHeight: window.innerHeight,
+      documentHeight: document.documentElement.scrollHeight,
+    }
+  })
+
+  expect(footerLayout.documentHeight).toBe(footerLayout.viewportHeight)
+  expect(footerLayout.bottom).toBe(footerLayout.viewportHeight)
+})
+
 test('city fixtures use the linked 2011 population threshold with valid coordinates', () => {
   expect(cityDashboardData).toHaveLength(339)
   expect(
