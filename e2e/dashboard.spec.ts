@@ -214,7 +214,17 @@ test('opens the Air quality tab by default and loads selected-city data', async 
   await page.goto('/')
 
   const airQualityTab = page.getByRole('tab', { name: 'Air quality' })
+  await expect(page.getByRole('tab').nth(0)).toHaveAccessibleName('Air quality')
+  await expect(page.getByRole('tab').nth(1)).toHaveAccessibleName('Weather')
   await expect(airQualityTab).toHaveAttribute('aria-selected', 'true')
+  await expect(
+    page
+      .locator('.aqi-overview')
+      .getByText(/Model time 14 Nov 2026, 1:30 am IST/),
+  ).toBeVisible()
+  await expect(
+    page.locator('#aqi-panel .weather-meta').getByText(/Model time/),
+  ).toHaveCount(0)
   await expect(page.getByText('115', { exact: true })).toBeVisible()
   await expect.poll(() => requestedAirQualityRequests.length).toBe(1)
   await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).toBeVisible()
@@ -224,6 +234,11 @@ test('opens the Air quality tab by default and loads selected-city data', async 
   await expect(
     page.getByRole('heading', { name: 'Major air pollutants' }),
   ).toBeVisible()
+  await expect(
+    page.getByRole('region', { name: 'Major air pollutants' }).getByText(
+      'Model estimate',
+    ),
+  ).toHaveCount(0)
   await expect(page.getByText('667.0 µg/m³')).toBeVisible()
   await expect(page.getByText('17.4 µg/m³')).toBeVisible()
   await expect(page.getByText('15.3 µg/m³')).toBeVisible()
@@ -313,16 +328,47 @@ test('shows an illustration for each US AQI category', async ({ page }) => {
   await page.getByRole('tab', { name: 'Air quality' }).click()
 
   const categories = [
-    { value: 25, slug: 'good', label: 'Good' },
-    { value: 75, slug: 'moderate', label: 'Moderate' },
+    {
+      value: 25,
+      slug: 'good',
+      label: 'Good',
+      guidance:
+        'Air quality is satisfactory, and air pollution poses little or no risk.',
+    },
+    {
+      value: 75,
+      slug: 'moderate',
+      label: 'Moderate',
+      guidance:
+        'Air quality is acceptable. However, there may be a risk for some people, particularly those who are unusually sensitive to air pollution.',
+    },
     {
       value: 125,
       slug: 'unhealthy-for-sensitive-groups',
       label: 'Unhealthy for Sensitive Groups',
+      guidance:
+        'Members of sensitive groups may experience health effects. The general public is less likely to be affected.',
     },
-    { value: 175, slug: 'unhealthy', label: 'Unhealthy' },
-    { value: 250, slug: 'very-unhealthy', label: 'Very Unhealthy' },
-    { value: 350, slug: 'hazardous', label: 'Hazardous' },
+    {
+      value: 175,
+      slug: 'unhealthy',
+      label: 'Unhealthy',
+      guidance:
+        'Some members of the general public may experience health effects; members of sensitive groups may experience more serious health effects.',
+    },
+    {
+      value: 250,
+      slug: 'very-unhealthy',
+      label: 'Very Unhealthy',
+      guidance: 'Health alert: the risk of health effects is increased for everyone.',
+    },
+    {
+      value: 350,
+      slug: 'hazardous',
+      label: 'Hazardous',
+      guidance:
+        'Health warning of emergency conditions: everyone is more likely to be affected.',
+    },
   ]
 
   for (const [index, category] of categories.entries()) {
@@ -336,6 +382,7 @@ test('shows an illustration for each US AQI category', async ({ page }) => {
       category.slug,
     )
     await expect(page.locator('.aqi-category')).toHaveText(category.label)
+    await expect(page.locator('.aqi-guidance p')).toHaveText(category.guidance)
 
     const illustration = page.locator('.aqi-illustration')
     await expect(illustration).toHaveAttribute(
@@ -348,6 +395,18 @@ test('shows an illustration for each US AQI category', async ({ page }) => {
       )
       .toBeGreaterThan(0)
   }
+
+  const guidance = page.locator('.aqi-guidance')
+  await expect(guidance.locator('summary')).toHaveText(
+    'What does this AQI category mean?',
+  )
+  await expect(guidance).not.toHaveAttribute('open', '')
+  await guidance.locator('summary').click()
+  await expect(guidance.getByRole('link', { name: 'AirNow: AQI Basics' })).toHaveAttribute(
+    'href',
+    'https://www.airnow.gov/aqi/aqi-basics/',
+  )
+  await expect(guidance.locator('p')).toBeVisible()
 })
 
 test('matches rain probability to the current hourly forecast interval', async ({
@@ -471,7 +530,10 @@ test('shows the monthly calendar in the weather tab with historical, forecast, a
   await expect(page.locator('.weather-footer').getByRole('link', {
     name: 'Weather data by Open-Meteo.com',
   })).toHaveCount(1)
-  await expect(page.getByText('Delhi 30-day weather forecast')).toBeVisible()
+  await expect(page.getByText('Delhi 30-day weather calendar')).toBeVisible()
+  await expect(
+    page.getByText('Temperatures: high / low (top to bottom)'),
+  ).toBeVisible()
   const detailsBounds = await page
     .getByRole('article')
     .filter({ hasText: 'Chance of rain' })
@@ -582,7 +644,7 @@ test('navigates months and reloads the calendar for the selected city on mobile'
 
   await selectCityBySearch(page, 'Pune')
   await expect(
-    page.getByText('Pune 30-day weather forecast', { exact: true }),
+    page.getByText('Pune 30-day weather calendar', { exact: true }),
   ).toBeVisible()
   await expect.poll(() => requestedArchiveCoordinates.length).toBe(2)
   await expect.poll(() => requestedForecastCoordinates.length).toBe(2)
@@ -681,7 +743,7 @@ test('reports monthly source failures and retries without losing the city contex
       page.getByLabel('Daily weather calendar for November 2026'),
     ).toBeVisible()
     await expect(
-      page.getByText('Delhi 30-day weather forecast', { exact: true }),
+      page.getByText('Delhi 30-day weather calendar', { exact: true }),
     ).toBeVisible()
 })
 
@@ -1124,7 +1186,13 @@ test('shows source population and licensing without adding a Census tab', async 
   await mockWeather(page)
   await page.goto('/')
 
-  await expect(page.getByText('2011 Census population: 1,10,34,555')).toBeVisible()
+  const cityDetails = page.locator('.city-details')
+  await expect(cityDetails.locator('summary')).toHaveText('City information')
+  await expect(cityDetails).not.toHaveAttribute('open', '')
+  await cityDetails.locator('summary').click()
+  await expect(
+    cityDetails.getByText('2011 Census population: 1,10,34,555'),
+  ).toBeVisible()
   const search = page.getByRole('combobox', { name: 'Search cities' })
   await search.fill('Mumbai')
 

@@ -95,6 +95,25 @@ function getForecastSourceLabel(
   }
 }
 
+function getAqiCategoryGuidance(category: string | null): string | null {
+  switch (category) {
+    case 'Good':
+      return 'Air quality is satisfactory, and air pollution poses little or no risk.'
+    case 'Moderate':
+      return 'Air quality is acceptable. However, there may be a risk for some people, particularly those who are unusually sensitive to air pollution.'
+    case 'Unhealthy for Sensitive Groups':
+      return 'Members of sensitive groups may experience health effects. The general public is less likely to be affected.'
+    case 'Unhealthy':
+      return 'Some members of the general public may experience health effects; members of sensitive groups may experience more serious health effects.'
+    case 'Very Unhealthy':
+      return 'Health alert: the risk of health effects is increased for everyone.'
+    case 'Hazardous':
+      return 'Health warning of emergency conditions: everyone is more likely to be affected.'
+    default:
+      return null
+  }
+}
+
 function getInitialCity(): CityDashboardData {
   const city = cityDashboardData.find((item) => item.id === 'delhi')
   if (!city) {
@@ -346,7 +365,7 @@ function App() {
     }
 
     event.preventDefault()
-    selectTab(nextIndex === 0 ? 'weather' : 'aqi')
+    selectTab(nextIndex === 0 ? 'aqi' : 'weather')
     tabRefs.current[nextIndex]?.focus()
   }
 
@@ -356,6 +375,7 @@ function App() {
     selectedAirQualityState?.status === 'success'
       ? getUsAqiCategory(Math.round(selectedAirQualityState.airQuality.usAqi))
       : null
+  const aqiCategoryGuidance = getAqiCategoryGuidance(aqiCategory)
   const aqiIllustration = aqiCategory?.toLowerCase().replace(/\s+/g, '-') ?? null
   const selectedWeatherState =
     weatherState.cityId === selectedCity.id ? weatherState : null
@@ -706,10 +726,15 @@ function App() {
           <p className="location-subtitle">
             A simple snapshot of the weather and air around your city.
           </p>
-          <p className="city-population">
-            {CITY_POPULATION_YEAR} Census population:{' '}
-            <strong>{populationFormatter.format(selectedCity.population)}</strong>
-          </p>
+          <details className="city-details">
+            <summary>City information</summary>
+            <p className="city-population">
+              {CITY_POPULATION_YEAR} Census population:{' '}
+              <strong>
+                {populationFormatter.format(selectedCity.population)}
+              </strong>
+            </p>
+          </details>
         </div>
 
         <div
@@ -732,25 +757,6 @@ function App() {
               ref={(element) => {
                 tabRefs.current[0] = element
               }}
-              id="weather-tab"
-              className="tab"
-              type="button"
-              role="tab"
-              aria-selected={activeTab === 'weather'}
-              aria-controls="weather-panel forecast-panel"
-              tabIndex={activeTab === 'weather' ? 0 : -1}
-              onClick={() => selectTab('weather')}
-              onKeyDown={(event) => handleTabKeyDown(event, 0)}
-            >
-              <span className="tab-icon weather-tab-icon" aria-hidden="true">
-                ☀
-              </span>
-              Weather
-            </button>
-            <button
-              ref={(element) => {
-                tabRefs.current[1] = element
-              }}
               id="aqi-tab"
               className="tab"
               type="button"
@@ -759,12 +765,31 @@ function App() {
               aria-controls="aqi-panel"
               tabIndex={activeTab === 'aqi' ? 0 : -1}
               onClick={() => selectTab('aqi')}
-              onKeyDown={(event) => handleTabKeyDown(event, 1)}
+              onKeyDown={(event) => handleTabKeyDown(event, 0)}
             >
               <span className="tab-icon aqi-tab-icon" aria-hidden="true">
                 ◉
               </span>
               Air quality
+            </button>
+            <button
+              ref={(element) => {
+                tabRefs.current[1] = element
+              }}
+              id="weather-tab"
+              className="tab"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'weather'}
+              aria-controls="weather-panel forecast-panel"
+              tabIndex={activeTab === 'weather' ? 0 : -1}
+              onClick={() => selectTab('weather')}
+              onKeyDown={(event) => handleTabKeyDown(event, 1)}
+            >
+              <span className="tab-icon weather-tab-icon" aria-hidden="true">
+                ☀
+              </span>
+              Weather
             </button>
           </div>
 
@@ -929,6 +954,19 @@ function App() {
                     </p>
                     <p className="aqi-category">{aqiCategory}</p>
                     <p className="city-caption">United States AQI scale</p>
+                    <p className="observation-time aqi-model-time">
+                      Model time{' '}
+                      <time
+                        dateTime={toObservationDateTime(
+                          selectedAirQualityState.airQuality.modelTime,
+                        )}
+                      >
+                        {formatObservationTime(
+                          selectedAirQualityState.airQuality.modelTime,
+                        )}{' '}
+                        IST
+                      </time>
+                    </p>
                   </>
                 ) : null}
               </div>
@@ -976,6 +1014,19 @@ function App() {
 
             {selectedAirQualityState?.status === 'success' ? (
               <>
+                {aqiCategoryGuidance ? (
+                  <details className="aqi-guidance">
+                    <summary>What does this AQI category mean?</summary>
+                    <p>{aqiCategoryGuidance}</p>
+                    <a
+                      href="https://www.airnow.gov/aqi/aqi-basics/"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      AirNow: AQI Basics
+                    </a>
+                  </details>
+                ) : null}
                 <section
                   className="pollutant-section"
                   aria-labelledby="pollutants-heading"
@@ -991,9 +1042,7 @@ function App() {
                       >
                         <span className="pollutant-tag">{symbol}</span>
                         <div>
-                          <p className="detail-label">
-                            {label} · Model estimate
-                          </p>
+                          <p className="detail-label">{label}</p>
                           <p className="detail-value">
                             {selectedAirQualityState.airQuality[key].toFixed(1)}
                             <span> µg/m³</span>
@@ -1005,19 +1054,6 @@ function App() {
                 </section>
 
                 <div className="weather-meta">
-                  <p className="observation-time">
-                    Model time{' '}
-                    <time
-                      dateTime={toObservationDateTime(
-                        selectedAirQualityState.airQuality.modelTime,
-                      )}
-                    >
-                      {formatObservationTime(
-                        selectedAirQualityState.airQuality.modelTime,
-                      )}{' '}
-                      IST
-                    </time>
-                  </p>
                   <a
                     className="weather-attribution"
                     href="https://open-meteo.com/"
@@ -1063,7 +1099,7 @@ function App() {
             <div className="forecast-heading">
               <div>
                 <p className="panel-kicker">
-                  {selectedCity.city} 30-day weather forecast
+                  {selectedCity.city} 30-day weather calendar
                 </p>
                 <h2 id="forecast-heading">
                   {formatForecastMonth(forecastMonth)}
@@ -1103,6 +1139,9 @@ function App() {
               </span>
               <span className="forecast-legend-item typical">
                 Typical · 10-year average
+              </span>
+              <span className="forecast-temperature-key">
+                Temperatures: high / low (top to bottom)
               </span>
             </div>
 

@@ -20,6 +20,7 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and pollutant dat
 - Treat current air-quality values as model-based estimates, not local sensor or monitoring-station measurements.
 - Display pollutant concentrations in Open-Meteo's supplied `μg/m³` units; do not relabel or convert gas values to `ppb`.
 - Validate API responses. Show loading, recoverable error/retry, and model-time states. Never substitute demo AQI when live data fails.
+- Show the model time beside the AQI score. Provide an accessible category explanation from the official AirNow AQI Basics descriptions, with a source link; do not invent health advice.
 - Abort superseded requests and impose a finite request timeout.
 - Display an Open-Meteo attribution link beside the air-quality data and link the CC BY 4.0 licence.
 - The free API is non-commercial and has request limits. Follow Open-Meteo's terms and monitor limits if usage grows.
@@ -31,6 +32,7 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and pollutant dat
 3. Loading, provider/network/invalid-response errors, and retry are understandable and accessible; failures do not show fabricated data.
 4. The UI distinguishes US AQI from CPCB India AQI, describes model-based data, and shows attribution and licence links.
 5. Playwright covers successful pollutant fetch and display, city selection, request scope, error/retry, invalid responses, attribution, and the six-card desktop/tablet/mobile layout using mocked API responses.
+6. All six US AQI categories show their matching AirNow description in a keyboard-accessible disclosure linked to the source, and the model time appears beside the AQI score.
 
 ## Verification
 
