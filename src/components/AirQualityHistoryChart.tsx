@@ -15,7 +15,7 @@ type AirQualityHistoryChartProps = {
   refreshVersion: number
 }
 
-type ChartRange = '25-hours' | '7-days' | '30-days' | '3-months'
+type ChartRange = '24-hours' | '7-days' | '30-days' | '3-months'
 type ChartMode = 'bar' | 'line'
 type ChartPoint = {
   time: string
@@ -32,7 +32,7 @@ const hourInMilliseconds = 60 * 60 * 1000
 const dayInMilliseconds = 24 * hourInMilliseconds
 
 const rangeOptions: Array<{ value: ChartRange; label: string }> = [
-  { value: '25-hours', label: '25 Hours' },
+  { value: '24-hours', label: '24 Hours' },
   { value: '7-days', label: '7 Days' },
   { value: '30-days', label: '30 Days' },
   { value: '3-months', label: '3 Months' },
@@ -49,17 +49,21 @@ const metricOptions: Array<{
 ]
 
 const severityColors = [
-  { category: 'Good', color: '#6fa77d' },
-  { category: 'Moderate', color: '#b9a94f' },
-  { category: 'Unhealthy for Sensitive Groups', color: '#d18b50' },
-  { category: 'Unhealthy', color: '#c66a62' },
-  { category: 'Very Unhealthy', color: '#9473a4' },
-  { category: 'Hazardous', color: '#875b78' },
+  { category: 'Good', range: '0–50', color: '#6fa77d' },
+  { category: 'Moderate', range: '51–100', color: '#b9a94f' },
+  {
+    category: 'Unhealthy for Sensitive Groups',
+    range: '101–150',
+    color: '#d18b50',
+  },
+  { category: 'Unhealthy', range: '151–200', color: '#c66a62' },
+  { category: 'Very Unhealthy', range: '201–300', color: '#9473a4' },
+  { category: 'Hazardous', range: '301+', color: '#875b78' },
 ]
 
 const chartWidth = 760
 const chartHeight = 280
-const plotLeft = 52
+const plotLeft = 72
 const plotRight = 744
 const plotTop = 18
 const plotBottom = 232
@@ -68,8 +72,8 @@ const plotHeight = plotBottom - plotTop
 
 function getRangeDuration(range: ChartRange): number {
   switch (range) {
-    case '25-hours':
-      return 25 * hourInMilliseconds
+    case '24-hours':
+      return 24 * hourInMilliseconds
     case '7-days':
       return 7 * dayInMilliseconds
     case '30-days':
@@ -109,7 +113,7 @@ function getChartPoints(
     return time >= start && time <= now && point[metric] !== null
   })
 
-  if (range === '25-hours') {
+  if (range === '24-hours') {
     return selectedPoints.flatMap((point) => {
       const value = point[metric]
       return value === null
@@ -156,7 +160,7 @@ function formatAxisValue(value: number): string {
 function formatPointTime(time: string, range: ChartRange): string {
   const date = new Date(getPointTime(time))
   const options: Intl.DateTimeFormatOptions =
-    range === '25-hours'
+    range === '24-hours'
       ? {
           day: 'numeric',
           month: 'short',
@@ -171,7 +175,7 @@ function formatPointTime(time: string, range: ChartRange): string {
 function formatAxisTime(time: string, range: ChartRange): string {
   const date = new Date(getPointTime(time))
   const options: Intl.DateTimeFormatOptions =
-    range === '25-hours'
+    range === '24-hours'
       ? { hour: '2-digit', minute: '2-digit', timeZone }
       : { day: 'numeric', month: 'short', timeZone }
   return new Intl.DateTimeFormat('en-IN', options).format(date)
@@ -222,7 +226,7 @@ export function AirQualityHistoryChart({
   longitude,
   refreshVersion,
 }: AirQualityHistoryChartProps) {
-  const [range, setRange] = useState<ChartRange>('25-hours')
+  const [range, setRange] = useState<ChartRange>('24-hours')
   const [metric, setMetric] = useState<AirQualityHistoryMetric>('usAqi')
   const [chartMode, setChartMode] = useState<ChartMode>('bar')
   const [retryVersion, setRetryVersion] = useState(0)
@@ -295,7 +299,7 @@ export function AirQualityHistoryChart({
     'AQI (US)'
   const metricUnit =
     metricOptions.find((option) => option.value === selectedMetric)?.unit ?? 'AQI'
-  const isDailyPeakRange = range !== '25-hours'
+  const isDailyPeakRange = range !== '24-hours'
   const maximumValue = chartPoints.reduce(
     (maximum, point) => Math.max(maximum, point.value),
     0,
@@ -444,7 +448,7 @@ export function AirQualityHistoryChart({
           <p className="aqi-history-period">
             {isDailyPeakRange
               ? 'Daily peaks · maximum modeled value for each local day'
-              : 'Actual 3-hour model samples · last 25 hours'}
+              : 'Actual 3-hour model samples · last 24 hours'}
           </p>
           <div className="aqi-history-summary" aria-label={`${metricLabel} summary`}>
             {minimumPoint ? (
@@ -494,7 +498,7 @@ export function AirQualityHistoryChart({
                         className="aqi-chart-gridline"
                       />
                       <text
-                        x={plotLeft - 10}
+                        x={plotLeft - 24}
                         y={y + 4}
                         className="aqi-chart-axis-label"
                         textAnchor="end"
@@ -566,20 +570,22 @@ export function AirQualityHistoryChart({
 
           <div className="aqi-chart-legend">
             <div>
-              <p className="aqi-chart-legend-title">Color key · U.S. AQI categories</p>
+              <p className="aqi-chart-legend-title">
+                Color key · U.S. AQI categories and ranges
+              </p>
               <p className="aqi-chart-legend-note">
-                PM2.5 and PM10 use their pollutant-specific U.S. AQI index.
+                Ranges are U.S. AQI values. PM bars use their pollutant-specific AQI index.
               </p>
             </div>
-            <ul aria-label="U.S. AQI severity colors">
-              {severityColors.map(({ category, color }) => (
+            <ul aria-label="U.S. AQI severity colors and ranges">
+              {severityColors.map(({ category, range: categoryRange, color }) => (
                 <li key={category}>
                   <span
                     className="aqi-chart-legend-swatch"
                     style={{ backgroundColor: color }}
                     aria-hidden="true"
                   />
-                  {category}
+                  {category} <span className="aqi-chart-legend-range">{categoryRange}</span>
                 </li>
               ))}
               <li>

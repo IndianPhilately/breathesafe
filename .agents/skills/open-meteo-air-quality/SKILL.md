@@ -9,7 +9,7 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and pollutant dat
 
 - Replace illustrative AQI and particulate fixtures with selected-city current air-quality data from Open-Meteo's Air Quality API.
 - Display Open-Meteo's US AQI, a category using the US AQI bands, PM2.5, PM10, carbon monoxide, nitrogen dioxide, sulphur dioxide, ozone, and the provider model time.
-- Show an AQI/PM2.5/PM10 history chart beneath the pollutant cards, with 25-hour, 7-day, 30-day, and 3-month ranges plus bar/line modes.
+- Show an AQI/PM2.5/PM10 history chart beneath the pollutant cards, with 24-hour, 7-day, 30-day, and 3-month ranges plus bar/line modes.
 - Open the dashboard on the Air quality tab by default.
 - Request data only for the selected city while its Air quality tab is open; do not poll or request unselected cities.
 - This project is intended for non-commercial use and uses Open-Meteo's free public endpoint. Commercial usage requires an appropriate Open-Meteo plan.
@@ -19,7 +19,7 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and pollutant dat
 - Open-Meteo supplies US AQI and European AQI, not CPCB India's AQI. Label the displayed scale as US AQI; never call it Indian/CPCB AQI.
 - Use maintained city-center coordinates and India local time (`Asia/Kolkata`).
 - Treat current air-quality values as model-based estimates, not local sensor or monitoring-station measurements.
-- The India CAMS Global history series is 3-hourly and the public endpoint permits up to 92 past days. Use actual samples for 25 hours, daily peaks for 7 days through 3 months, and keep 1-year/10-year ranges disabled with an availability explanation.
+- The India CAMS Global history series is 3-hourly and the public endpoint permits up to 92 past days. Use actual samples for 24 hours, daily peaks for 7 days through 3 months, and keep 1-year/10-year ranges disabled with an availability explanation.
 - Do not interpolate missing history values or render them as zero; omit unavailable measures and show a clear empty state when a selected range has no values.
 - Display pollutant concentrations in Open-Meteo's supplied `μg/m³` units; do not relabel or convert gas values to `ppb`.
 - Validate API responses. Show loading, recoverable error/retry, and model-time states. Never substitute demo AQI when live data fails.

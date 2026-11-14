@@ -435,17 +435,48 @@ test('charts history across ranges, pollutant measures, and chart styles', async
   await expect(page.getByRole('heading', { name: 'Air quality trend' })).toBeVisible()
   await expect(
     page.getByRole('img', {
-      name: 'Bar chart of AQI (US) for Delhi, 25 Hours.',
+      name: 'Bar chart of AQI (US) for Delhi, 24 Hours.',
     }),
   ).toBeVisible()
-  await expect(range).toHaveValue('25-hours')
+  await expect(range).toHaveValue('24-hours')
   await expect(measure).toHaveValue('usAqi')
+  const yAxisOverlapsFirstBar = await page
+    .locator('.aqi-history-chart')
+    .evaluate((svg) => {
+      const labels = Array.from(
+        svg.querySelectorAll<SVGTextElement>(
+          '.aqi-chart-axis-label[text-anchor="end"]',
+        ),
+      )
+      const firstBar = svg.querySelector('rect')?.getBoundingClientRect()
+      return (
+        firstBar !== undefined &&
+        labels.some((label) => {
+          const bounds = label.getBoundingClientRect()
+          return (
+            bounds.left < firstBar.right &&
+            bounds.right > firstBar.left &&
+            bounds.top < firstBar.bottom &&
+            bounds.bottom > firstBar.top
+          )
+        })
+      )
+    })
+  expect(yAxisOverlapsFirstBar).toBe(false)
+
   const recentSampleCount = await chartData.count()
-  expect(recentSampleCount).toBeGreaterThanOrEqual(8)
-  expect(recentSampleCount).toBeLessThanOrEqual(9)
+  expect(recentSampleCount).toBe(8)
   await expect(
-    page.getByText('Actual 3-hour model samples · last 25 hours'),
+    page.getByText('Actual 3-hour model samples · last 24 hours'),
   ).toBeVisible()
+
+  await measure.selectOption('pm25')
+  const pm25BarColors = await page
+    .locator('.aqi-history-chart rect')
+    .evaluateAll((bars) => bars.map((bar) => bar.getAttribute('fill')))
+  expect(pm25BarColors).toContain('#b9a94f')
+  expect(pm25BarColors).toContain('#c66a62')
+  await measure.selectOption('usAqi')
 
   await range.selectOption('7-days')
   await expect(
@@ -473,7 +504,15 @@ test('charts history across ranges, pollutant measures, and chart styles', async
     'fill',
     '#d18b50',
   )
-  await expect(page.getByText('U.S. AQI categories')).toBeVisible()
+  const severityLegend = page.getByRole('list', {
+    name: 'U.S. AQI severity colors and ranges',
+  })
+  await expect(severityLegend).toContainText('Good 0–50')
+  await expect(severityLegend).toContainText('Moderate 51–100')
+  await expect(severityLegend).toContainText('Unhealthy for Sensitive Groups 101–150')
+  await expect(severityLegend).toContainText('Unhealthy 151–200')
+  await expect(severityLegend).toContainText('Very Unhealthy 201–300')
+  await expect(severityLegend).toContainText('Hazardous 301+')
 
   await page.getByRole('button', { name: 'Line chart' }).click()
   await expect(
