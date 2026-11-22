@@ -209,7 +209,7 @@ test('aligns the larger header brand and city picker with dashboard content', as
 test('keeps the page footer at the viewport bottom on short air-quality pages', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 1280, height: 3200 })
+  await page.setViewportSize({ width: 1280, height: 3800 })
   await mockWeather(page)
   await page.goto('/')
 
@@ -1948,4 +1948,54 @@ test('displays health advice with Berkeley Earth cigarette equivalency and dynam
   await expect(maskTab).toBeVisible()
   await maskTab.click()
   await expect(healthCard.locator('.health-solution-callout')).toContainText('wear an N95 mask')
+})
+
+test('supports direct URL routing and bookmarking for city and tab', async ({
+  page,
+}) => {
+  await mockWeather(page)
+
+  // Direct load of Pune via URL parameter
+  await page.goto('/?city=pune')
+  await expect(page.getByRole('heading', { name: 'Pune, Maharashtra' })).toBeVisible()
+  await expect(page).toHaveTitle(/Pune Air Quality & Weather · BreatheSafe/)
+
+  // Direct load of Mumbai with Weather tab
+  await page.goto('/?city=mumbai&tab=weather')
+  await expect(page.getByRole('heading', { name: 'Mumbai, Maharashtra' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Weather' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+
+  // Navigating to another city updates URL query parameter
+  await selectCityBySearch(page, 'Jaipur')
+  await expect(page.getByRole('heading', { name: 'Jaipur, Rajasthan' })).toBeVisible()
+  await expect(page).toHaveURL(/city=jaipur/)
+
+  // Browser back restores Mumbai
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Mumbai, Maharashtra' })).toBeVisible()
+  await expect(page).toHaveURL(/city=mumbai/)
+})
+
+test('displays share icons under illustration and primary pollutant tag next to name', async ({
+  page,
+}) => {
+  await mockWeather(page)
+
+  await page.goto('/')
+
+  // Verify share icons under illustration
+  const shareRow = page.locator('.aqi-share-icons-row')
+  await expect(shareRow).toBeVisible()
+  await expect(shareRow.getByRole('button', { name: 'Share on X' })).toBeVisible()
+  await expect(shareRow.getByRole('button', { name: 'Share on Facebook' })).toBeVisible()
+  await expect(shareRow.getByRole('button', { name: 'Share on Instagram' })).toBeVisible()
+  await expect(shareRow.getByRole('button', { name: 'Copy link' })).toBeVisible()
+
+  // Verify Primary pollutant tag is rendered in the label row next to pollutant name
+  const primaryTag = page.locator('.pollutant-label-row .primary-tag')
+  await expect(primaryTag).toBeVisible()
+  await expect(primaryTag).toHaveText('Primary')
 })

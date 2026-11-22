@@ -12,6 +12,8 @@ type TileAqiState =
 type MetroCityAqiTilesProps = {
   cities: CityDashboardData[]
   active: boolean
+  currentCityAqi?: number
+  currentCityName?: string
   onCitySelect: (city: CityDashboardData) => void
 }
 
@@ -37,6 +39,8 @@ function aqiCategoryColor(category: string | null): string {
 export function MetroCityAqiTiles({
   cities,
   active,
+  currentCityAqi,
+  currentCityName,
   onCitySelect,
 }: MetroCityAqiTilesProps) {
   const metroCities = METRO_CITY_IDS.flatMap((id) => {
@@ -172,6 +176,27 @@ export function MetroCityAqiTiles({
                     >
                       {state.category}
                     </span>
+                    {city.city === currentCityName ? (
+                      <span className="metro-tile-delta current">Viewing</span>
+                    ) : currentCityAqi !== undefined ? (
+                      state.usAqi < currentCityAqi ? (
+                        <span
+                          className="metro-tile-delta cleaner"
+                          title={`${Math.round(((currentCityAqi - state.usAqi) / Math.max(currentCityAqi, 1)) * 100)}% cleaner than ${currentCityName}`}
+                        >
+                          {Math.round(((currentCityAqi - state.usAqi) / Math.max(currentCityAqi, 1)) * 100)}% cleaner
+                        </span>
+                      ) : state.usAqi > currentCityAqi ? (
+                        <span
+                          className="metro-tile-delta higher"
+                          title={`${Math.round(((state.usAqi - currentCityAqi) / Math.max(currentCityAqi, 1)) * 100)}% higher than ${currentCityName}`}
+                        >
+                          +{Math.round(((state.usAqi - currentCityAqi) / Math.max(currentCityAqi, 1)) * 100)}% higher
+                        </span>
+                      ) : (
+                        <span className="metro-tile-delta same">Same AQI</span>
+                      )
+                    ) : null}
                   </>
                 )}
 

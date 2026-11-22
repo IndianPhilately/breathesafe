@@ -16,6 +16,7 @@ description: Guidance for BreatheSafe's cigarette smoking equivalency and dynami
   - Mask guidance (e.g. "N95 Mask Essential", "Recommended")
   - Outdoor / Indoor activity guidance (e.g. "Stay Indoor", "Great for walks")
   - Ventilation advice (e.g. "Keep windows closed", "Open windows")
+- Provide a **24-Hour Activity & Exposure Outlook** showing safest outdoor exercise windows (e.g. late afternoon mixing) vs peak caution windows (early morning inversion layer) based on atmospheric diurnal cycles.
 - Match BreatheSafe's light sage / responsive UI theme with accessible semantic controls.
 
 ## Data and product rules

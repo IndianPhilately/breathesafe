@@ -27,6 +27,7 @@ Use Playwright Test to verify BreatheSafe behavior through real browser interact
 7. Prefer assertions against rendered output and user-observable behavior over implementation details. Keep test setup and fixtures small, typed, and reusable only when reuse improves clarity.
 8. Include responsive coverage at meaningful breakpoints for features whose layout or interaction changes by viewport. Check keyboard interaction and accessible names for interactive controls where relevant.
 9. **Test execution strategy (Fast feedback vs. Full suite):**
+   - **Windows execution note:** Always run Playwright commands (`npx playwright test`) outside the terminal sandbox (`BypassSandbox: true`). Playwright starts a local loopback server (`127.0.0.1:4173`) and launches a headless browser; running sandboxed isolates local TCP sockets and causes the test runner to hang. Lint and build steps can continue running sandboxed.
    - **During active development / iterative changes:** Run only the focused test matching the affected feature area (e.g. `npx playwright test -g "<feature-keyword>"`). Also run quick build and lint checks (`npm run build && npm run lint`).
    - **Before commit / final verification:** Run the full E2E test suite (`npm run test:e2e`) to guarantee zero regressions across the whole app.
    - Report the exact commands and results. If a browser, environment variable, or service prevents execution, report it as blocked; do not describe an unrun test as passing.

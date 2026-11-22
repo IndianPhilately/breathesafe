@@ -19,6 +19,7 @@ import {
 } from './services/openMeteo'
 import {
   fetchCurrentAirQuality,
+  getPrimaryPollutant,
   getUsAqiCategory,
   type CurrentAirQuality,
 } from './services/openMeteoAirQuality'
@@ -126,12 +127,35 @@ function getInitialCity(): CityDashboardData {
   return city
 }
 
-const initialCity = getInitialCity()
+const defaultCity = getInitialCity()
 const initialForecastMonth = getInitialForecastMonth()
 
+function getCityFromUrl(): CityDashboardData {
+  if (typeof window === 'undefined') return defaultCity
+  const params = new URLSearchParams(window.location.search)
+  const cityParam = params.get('city')?.toLowerCase().trim()
+  if (!cityParam) return defaultCity
+
+  const found = cityDashboardData.find(
+    (item) =>
+      item.id.toLowerCase() === cityParam ||
+      item.city.toLowerCase() === cityParam ||
+      item.searchAliases?.some((alias) => alias.toLowerCase() === cityParam),
+  )
+  return found ?? defaultCity
+}
+
+function getTabFromUrl(): DashboardTab {
+  if (typeof window === 'undefined') return 'aqi'
+  const params = new URLSearchParams(window.location.search)
+  const tabParam = params.get('tab')?.toLowerCase().trim()
+  return tabParam === 'weather' ? 'weather' : 'aqi'
+}
+
 function App() {
-  const [selectedCity, setSelectedCity] =
-    useState<CityDashboardData>(initialCity)
+  const [selectedCity, setSelectedCity] = useState<CityDashboardData>(() =>
+    getCityFromUrl(),
+  )
   const [citySearch, setCitySearch] = useState('')
   const [isCityListOpen, setIsCityListOpen] = useState(false)
   const [activeCityIndex, setActiveCityIndex] = useState(-1)
@@ -139,27 +163,97 @@ function App() {
     status: 'idle' | 'loading' | 'success' | 'error'
     message: string
   }>({ status: 'idle', message: '' })
-  const [activeTab, setActiveTab] = useState<DashboardTab>('aqi')
+  const [activeTab, setActiveTab] = useState<DashboardTab>(() =>
+    getTabFromUrl(),
+  )
   const [forecastMonth, setForecastMonth] = useState(initialForecastMonth)
   const [forecastRefreshVersion, setForecastRefreshVersion] = useState(0)
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [airQualityRefreshVersion, setAirQualityRefreshVersion] = useState(0)
-  const [weatherState, setWeatherState] = useState<WeatherLoadState>({
-    cityId: initialCity.id,
+  const [weatherState, setWeatherState] = useState<WeatherLoadState>(() => ({
+    cityId: getCityFromUrl().id,
     status: 'loading',
-  })
-  const [airQualityState, setAirQualityState] = useState<AirQualityLoadState>({
-    cityId: initialCity.id,
-    status: 'loading',
-  })
+  }))
+  const [airQualityState, setAirQualityState] = useState<AirQualityLoadState>(
+    () => ({
+      cityId: getCityFromUrl().id,
+      status: 'loading',
+    }),
+  )
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null)
   const [monthlyWeatherState, setMonthlyWeatherState] =
-    useState<MonthlyWeatherLoadState>({
-      cityId: initialCity.id,
+    useState<MonthlyWeatherLoadState>(() => ({
+      cityId: getCityFromUrl().id,
       month: initialForecastMonth,
       status: 'loading',
-    })
+    }))
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([null, null])
   const locationRequestId = useRef(0)
+
+  // Update document title for bookmarking
+  useEffect(() => {
+    document.title = `${selectedCity.city} Air Quality & Weather · BreatheSafe`
+  }, [selectedCity.city])
+
+  // Sync city & tab to URL search params
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const currentCityParam = url.searchParams.get('city')
+    const currentTabParam = url.searchParams.get('tab')
+
+    const targetCityParam = selectedCity.id
+    const targetTabParam = activeTab === 'weather' ? 'weather' : null
+
+    const cityChanged = currentCityParam !== targetCityParam
+    const tabChanged = (currentTabParam ?? null) !== targetTabParam
+
+    if (!cityChanged && !tabChanged) return
+
+    url.searchParams.set('city', targetCityParam)
+    if (targetTabParam) {
+      url.searchParams.set('tab', targetTabParam)
+    } else {
+      url.searchParams.delete('tab')
+    }
+
+    // Push new history entry if city changed; replaceState if only tab changed
+    if (cityChanged && currentCityParam !== null) {
+      window.history.pushState(
+        { cityId: selectedCity.id, tab: activeTab },
+        '',
+        url.toString(),
+      )
+    } else {
+      window.history.replaceState(
+        { cityId: selectedCity.id, tab: activeTab },
+        '',
+        url.toString(),
+      )
+    }
+  }, [selectedCity.id, activeTab])
+
+  // Handle browser Back / Forward (popstate)
+  useEffect(() => {
+    function handlePopState() {
+      const city = getCityFromUrl()
+      const tab = getTabFromUrl()
+      setSelectedCity(city)
+      setActiveTab(tab)
+      setCitySearch('')
+      setIsCityListOpen(false)
+      setLocationState({ status: 'idle', message: '' })
+      setWeatherState({ cityId: city.id, status: 'loading' })
+      setAirQualityState({ cityId: city.id, status: 'loading' })
+      setMonthlyWeatherState({
+        cityId: city.id,
+        month: initialForecastMonth,
+        status: 'loading',
+      })
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -990,16 +1084,178 @@ function App() {
               </div>
               {selectedAirQualityState?.status === 'success' &&
               aqiIllustration ? (
-                <div className="aqi-illustration-frame" aria-hidden="true">
-                  <img
-                    className="aqi-illustration"
-                    src={`/aqi-${aqiIllustration}.webp`}
-                    alt=""
-                  />
-                  <div className="aqi-illustration-caption">
-                    <span>US AQI</span>
-                    <span>model estimate</span>
+                <div className="aqi-illustration-column">
+                  <div className="aqi-illustration-frame" aria-hidden="true">
+                    <img
+                      className="aqi-illustration"
+                      src={`/aqi-${aqiIllustration}.webp`}
+                      alt=""
+                    />
+                    <div className="aqi-illustration-caption">
+                      <span>US AQI</span>
+                      <span>model estimate</span>
+                    </div>
                   </div>
+                  <div
+                    className="aqi-share-icons-row"
+                    role="group"
+                    aria-label="Share air quality"
+                  >
+                    <button
+                      type="button"
+                      className="share-icon-btn"
+                      aria-label="Share on X"
+                      title="Share on X"
+                      onClick={() => {
+                        const shareUrl = new URL(window.location.href)
+                        shareUrl.searchParams.set('city', selectedCity.id)
+                        if (activeTab === 'weather') {
+                          shareUrl.searchParams.set('tab', 'weather')
+                        } else {
+                          shareUrl.searchParams.delete('tab')
+                        }
+                        const text = `${selectedCity.city}'s Air Quality is ${Math.round(selectedAirQualityState.airQuality.usAqi)} (${aqiCategory}) on BreatheSafe · PM2.5: ${selectedAirQualityState.airQuality.pm25.toFixed(1)} µg/m³.`
+                        window.open(
+                          `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl.toString())}`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="share-icon-btn"
+                      aria-label="Share on Facebook"
+                      title="Share on Facebook"
+                      onClick={() => {
+                        const shareUrl = new URL(window.location.href)
+                        shareUrl.searchParams.set('city', selectedCity.id)
+                        if (activeTab === 'weather') {
+                          shareUrl.searchParams.set('tab', 'weather')
+                        } else {
+                          shareUrl.searchParams.delete('tab')
+                        }
+                        window.open(
+                          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl.toString())}`,
+                          '_blank',
+                          'noopener,noreferrer',
+                        )
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="share-icon-btn"
+                      aria-label="Share on Instagram"
+                      title="Share on Instagram (copies caption & link)"
+                      onClick={async () => {
+                        const shareUrl = new URL(window.location.href)
+                        shareUrl.searchParams.set('city', selectedCity.id)
+                        if (activeTab === 'weather') {
+                          shareUrl.searchParams.set('tab', 'weather')
+                        } else {
+                          shareUrl.searchParams.delete('tab')
+                        }
+                        const text = `${selectedCity.city}'s Air Quality is ${Math.round(selectedAirQualityState.airQuality.usAqi)} (${aqiCategory}) on BreatheSafe · PM2.5: ${selectedAirQualityState.airQuality.pm25.toFixed(1)} µg/m³.`
+                        if (navigator.clipboard) {
+                          await navigator.clipboard.writeText(
+                            `${text}\n${shareUrl.toString()}`,
+                          )
+                          setShareFeedback('Copied for Instagram!')
+                          setTimeout(() => setShareFeedback(null), 2500)
+                        }
+                        if (navigator.share) {
+                          try {
+                            await navigator.share({
+                              title: `${selectedCity.city} Air Quality · BreatheSafe`,
+                              text,
+                              url: shareUrl.toString(),
+                            })
+                          } catch {
+                            // dismissed
+                          }
+                        }
+                      }}
+                    >
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="share-icon-btn"
+                      aria-label="Copy link"
+                      title="Copy link"
+                      onClick={async () => {
+                        const shareUrl = new URL(window.location.href)
+                        shareUrl.searchParams.set('city', selectedCity.id)
+                        if (activeTab === 'weather') {
+                          shareUrl.searchParams.set('tab', 'weather')
+                        } else {
+                          shareUrl.searchParams.delete('tab')
+                        }
+                        const text = `${selectedCity.city}'s Air Quality is ${Math.round(selectedAirQualityState.airQuality.usAqi)} (${aqiCategory}) on BreatheSafe · PM2.5: ${selectedAirQualityState.airQuality.pm25.toFixed(1)} µg/m³.`
+                        if (navigator.clipboard) {
+                          await navigator.clipboard.writeText(
+                            `${text}\n${shareUrl.toString()}`,
+                          )
+                          setShareFeedback('Link copied!')
+                          setTimeout(() => setShareFeedback(null), 2500)
+                        }
+                      }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                      </svg>
+                    </button>
+                  </div>
+                  {shareFeedback && (
+                    <span className="share-feedback-toast" role="status">
+                      {shareFeedback}
+                    </span>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1053,21 +1309,36 @@ function App() {
                     Major air pollutants
                   </h2>
                   <div className="detail-grid pollutant-grid">
-                    {airQualityPollutants.map(({ key, symbol, label }) => (
-                      <article
-                        className="detail-card pollutant-card"
-                        key={key}
-                      >
-                        <span className="pollutant-tag">{symbol}</span>
-                        <div>
-                          <p className="detail-label">{label}</p>
-                          <p className="detail-value">
-                            {selectedAirQualityState.airQuality[key].toFixed(1)}
-                            <span> µg/m³</span>
-                          </p>
-                        </div>
-                      </article>
-                    ))}
+                    {airQualityPollutants.map(({ key, symbol, label }) => {
+                      const isPrimary =
+                        selectedAirQualityState.status === 'success' &&
+                        getPrimaryPollutant(selectedAirQualityState.airQuality).key === key
+                      return (
+                        <article
+                          className={`detail-card pollutant-card ${isPrimary ? 'primary-pollutant' : ''}`}
+                          key={key}
+                        >
+                          <span className="pollutant-tag">{symbol}</span>
+                          <div className="pollutant-info">
+                            <div className="pollutant-label-row">
+                              <p className="detail-label">{label}</p>
+                              {isPrimary && (
+                                <span
+                                  className="primary-tag"
+                                  title="Main contributor to today's AQI"
+                                >
+                                  Primary
+                                </span>
+                              )}
+                            </div>
+                            <p className="detail-value">
+                              {selectedAirQualityState.airQuality[key].toFixed(1)}
+                              <span> µg/m³</span>
+                            </p>
+                          </div>
+                        </article>
+                      )
+                    })}
                   </div>
                 </section>
 
@@ -1089,6 +1360,12 @@ function App() {
                 <MetroCityAqiTiles
                   cities={cityDashboardData}
                   active={activeTab === 'aqi'}
+                  currentCityAqi={
+                    selectedAirQualityState.status === 'success'
+                      ? Math.round(selectedAirQualityState.airQuality.usAqi)
+                      : undefined
+                  }
+                  currentCityName={selectedCity.city}
                   onCitySelect={(city) => {
                     setSelectedCity(city)
                     setCitySearch('')

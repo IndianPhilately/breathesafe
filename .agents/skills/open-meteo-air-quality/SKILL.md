@@ -9,6 +9,8 @@ description: Guidance for BreatheSafe's live Open-Meteo US AQI and pollutant dat
 
 - Replace illustrative AQI and particulate fixtures with selected-city current air-quality data from Open-Meteo's Air Quality API.
 - Display Open-Meteo's US AQI, a category using the US AQI bands, PM2.5, PM10, carbon monoxide, nitrogen dioxide, sulphur dioxide, ozone, and the provider model time.
+- Identify and highlight the Primary Pollutant driving the day's AQI with a subtle "PRIMARY" badge directly beside the pollutant name.
+- Surface 4 quick share action icon buttons under the category illustration card (𝕏, Facebook, Instagram, Copy link) that share formatted summaries with direct city links and provide instant feedback toasts.
 - Show an AQI/PM2.5/PM10 history chart beneath the pollutant cards, with 24-hour, 7-day, 30-day, and 3-month ranges plus bar/line modes.
 - Open the dashboard on the Air quality tab by default.
 - Request data only for the selected city while its Air quality tab is open; do not poll or request unselected cities.

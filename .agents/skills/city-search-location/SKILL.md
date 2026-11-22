@@ -8,6 +8,7 @@ description: Guidance for BreatheSafe's searchable India city picker and opt-in 
 ## Approved scope
 
 - Replace the native city select with a searchable, keyboard-operable city picker inspired by the supplied reference.
+- Support deep URL query routing and bookmarking (`?city=...&tab=...`), synchronizing with browser history (`pushState` / `popstate`) and updating document titles dynamically.
 - Support the 339 Indian city entries in Wikipedia's “List of cities in India by population” table above 100,000, using the listed 2011 population values and coordinates. Use Delhi as the initial city.
 - Offer an explicit device-location action. Do not request location automatically or persist precise device coordinates.
 - Resolve device coordinates to the nearest supported city and continue using that city's maintained coordinates for existing Open-Meteo weather and air-quality requests.

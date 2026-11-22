@@ -6,12 +6,21 @@ export type SolutionItem = {
   icon: string
 }
 
+export type HealthOutlook = {
+  bestTimeWindow: string
+  bestTimeTip: string
+  cautionWindow: string
+  cautionTip: string
+  activitySummary: string
+}
+
 export type HealthImpactData = {
   dailyCigarettes: number
   weeklyCigarettes: number
   monthlyCigarettes: number
   summary: string
   solutions: SolutionItem[]
+  outlook: HealthOutlook
 }
 
 /**
@@ -42,9 +51,17 @@ export function getHealthSolutions(usAqi: number, pm25: number): HealthImpactDat
 
   let summary = ''
   let solutions: SolutionItem[] = []
+  let outlook: HealthOutlook
 
   if (usAqi <= 50) {
     summary = 'Air quality is clean and satisfactory. Air pollution poses little to no health risk.'
+    outlook = {
+      bestTimeWindow: 'Anytime today',
+      bestTimeTip: 'Clean atmospheric conditions with excellent outdoor air quality.',
+      cautionWindow: 'None',
+      cautionTip: 'No peak pollution windows expected today.',
+      activitySummary: 'Ideal for morning jogs, cycling, and airing out your home.',
+    }
     solutions = [
       {
         id: 'outdoor',
@@ -77,6 +94,13 @@ export function getHealthSolutions(usAqi: number, pm25: number): HealthImpactDat
     ]
   } else if (usAqi <= 100) {
     summary = 'Air quality is acceptable. Extremely sensitive individuals may notice mild respiratory irritation.'
+    outlook = {
+      bestTimeWindow: '11:00 am – 4:30 pm',
+      bestTimeTip: 'Daytime solar heating and wind encourage pollutant dispersion.',
+      cautionWindow: '6:00 am – 8:30 am',
+      cautionTip: 'Early morning cooler boundary layer can hold local vehicular exhaust.',
+      activitySummary: 'Safe for outdoor exercise. Sensitive groups may prefer afternoons.',
+    }
     solutions = [
       {
         id: 'purifier',
@@ -109,6 +133,13 @@ export function getHealthSolutions(usAqi: number, pm25: number): HealthImpactDat
     ]
   } else if (usAqi <= 150) {
     summary = 'Members of sensitive groups may experience health effects. General public is less likely to be affected.'
+    outlook = {
+      bestTimeWindow: '1:00 pm – 4:30 pm',
+      bestTimeTip: 'Particulate density reaches its diurnal minimum during peak afternoon mixing.',
+      cautionWindow: '5:30 am – 9:00 am & late evening',
+      cautionTip: 'Morning thermal inversion traps ground-level particles near breathing level.',
+      activitySummary: 'Shift intense morning workouts indoors; afternoons are significantly safer.',
+    }
     solutions = [
       {
         id: 'purifier',
@@ -141,6 +172,13 @@ export function getHealthSolutions(usAqi: number, pm25: number): HealthImpactDat
     ]
   } else if (usAqi <= 200) {
     summary = 'Everyone may begin to experience health effects. Sensitive groups may experience more serious effects.'
+    outlook = {
+      bestTimeWindow: '2:00 pm – 4:30 pm',
+      bestTimeTip: 'Atmospheric mixing provides the least oppressive window, though air remains elevated.',
+      cautionWindow: '5:00 am – 10:00 am & 8:00 pm – 11:30 pm',
+      cautionTip: 'Heavy nighttime and dawn particulate stagnation across the region.',
+      activitySummary: 'Avoid strenuous outdoor cardio throughout the day; exercise in filtered indoor spaces.',
+    }
     solutions = [
       {
         id: 'purifier',
@@ -174,6 +212,13 @@ export function getHealthSolutions(usAqi: number, pm25: number): HealthImpactDat
   } else {
     // 201+ (Very Unhealthy & Hazardous)
     summary = 'Health alert: Risk of health effects is heightened for everyone. Continuous outdoor breathing causes severe particulate accumulation.'
+    outlook = {
+      bestTimeWindow: '2:00 pm – 3:30 pm (limited)',
+      bestTimeTip: 'Slightly higher ceiling height, but pollution remains hazardous.',
+      cautionWindow: 'All morning, evening, and night hours',
+      cautionTip: 'Severe particulate accumulation under thick winter inversion layer.',
+      activitySummary: 'Strictly avoid outdoor exercise. Keep windows sealed and operate HEPA purifiers continuously.',
+    }
     solutions = [
       {
         id: 'purifier',
@@ -212,5 +257,6 @@ export function getHealthSolutions(usAqi: number, pm25: number): HealthImpactDat
     monthlyCigarettes: monthly,
     summary,
     solutions,
+    outlook,
   }
 }

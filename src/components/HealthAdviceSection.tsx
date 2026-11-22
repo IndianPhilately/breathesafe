@@ -133,6 +133,30 @@ export function HealthAdviceSection({
             </p>
           </div>
         )}
+
+        <div className="health-outlook-card">
+          <div className="health-outlook-header">
+            <h4 className="health-outlook-title">
+              <span aria-hidden="true">⏱️</span> 24-Hour Activity & Exposure Outlook
+            </h4>
+            <span className="health-outlook-badge">Diurnal Pattern</span>
+          </div>
+          <p className="solution-callout-text">
+            {healthData.outlook.activitySummary}
+          </p>
+          <div className="health-outlook-details">
+            <div className="outlook-slot">
+              <span className="outlook-slot-label">Safest outdoor window</span>
+              <span className="outlook-slot-time">🟢 {healthData.outlook.bestTimeWindow}</span>
+              <span className="outlook-slot-tip">{healthData.outlook.bestTimeTip}</span>
+            </div>
+            <div className="outlook-slot">
+              <span className="outlook-slot-label">Peak pollution window</span>
+              <span className="outlook-slot-time">⚠️ {healthData.outlook.cautionWindow}</span>
+              <span className="outlook-slot-tip">{healthData.outlook.cautionTip}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   )

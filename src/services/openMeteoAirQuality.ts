@@ -124,6 +124,28 @@ export function getUsAqiCategory(aqi: number): string {
   return 'Hazardous'
 }
 
+/**
+ * Identify the primary driving pollutant.
+ * In Indian ambient air, PM2.5 and PM10 are normalized against their standards,
+ * with PM2.5 being the predominant driver.
+ */
+export function getPrimaryPollutant(
+  airQuality: Pick<CurrentAirQuality, 'pm25' | 'pm10' | 'ozone' | 'nitrogenDioxide' | 'sulphurDioxide' | 'carbonMonoxide'>,
+): { key: string; label: string } {
+  // Approximate standard ratios: PM2.5 standard 60, PM10 standard 100, Ozone standard 100, NO2 standard 80
+  const scores = [
+    { key: 'pm25', label: 'PM2.5', ratio: airQuality.pm25 / 60 },
+    { key: 'pm10', label: 'PM10', ratio: airQuality.pm10 / 100 },
+    { key: 'ozone', label: 'Ozone', ratio: airQuality.ozone / 100 },
+    { key: 'nitrogenDioxide', label: 'NO₂', ratio: airQuality.nitrogenDioxide / 80 },
+    { key: 'sulphurDioxide', label: 'SO₂', ratio: airQuality.sulphurDioxide / 80 },
+    { key: 'carbonMonoxide', label: 'CO', ratio: airQuality.carbonMonoxide / 2000 },
+  ]
+
+  scores.sort((a, b) => b.ratio - a.ratio)
+  return { key: scores[0].key, label: scores[0].label }
+}
+
 export function isLocalDateTime(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
   if (!match) return false
