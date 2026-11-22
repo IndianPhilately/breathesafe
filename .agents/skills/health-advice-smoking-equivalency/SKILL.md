@@ -10,13 +10,13 @@ description: Guidance for BreatheSafe's cigarette smoking equivalency and dynami
 - In the Air Quality tab between the Major air pollutants section and the Historical Air quality chart, render a dedicated **Health impact & advice** card for the selected city.
 - Compute cigarette smoking equivalency using the peer-reviewed Berkeley Earth methodology:
   - 1 cigarette/day ≈ 22 µg/m³ of ambient PM2.5.
-  - Surface daily, weekly (daily × 7), and monthly (daily × 30) cigarette-equivalent metrics.
+  - Surface daily, weekly (daily × 7), and monthly (daily × 30) cigarette-equivalent metrics accompanied by a custom animated vector SVG cigarette graphic with ember glow and smoke drift.
 - Provide dynamic, actionable solutions based on current AQI / PM2.5 severity:
   - Air Purifier advice (e.g. "Turn On", "Must", "Optional")
   - Mask guidance (e.g. "N95 Mask Essential", "Recommended")
   - Outdoor / Indoor activity guidance (e.g. "Stay Indoor", "Great for walks")
   - Ventilation advice (e.g. "Keep windows closed", "Open windows")
-- Provide a **24-Hour Activity & Exposure Outlook** showing safest outdoor exercise windows (e.g. late afternoon mixing) vs peak caution windows (early morning inversion layer) based on atmospheric diurnal cycles.
+- Provide a **24-Hour Activity & Exposure Outlook** showing safest outdoor exercise windows (e.g. late afternoon mixing) vs peak caution windows (early morning inversion layer) based on atmospheric diurnal cycles, and surface a quick-glance "Best outdoor window" status callout in the hero AQI overview.
 - Match BreatheSafe's light sage / responsive UI theme with accessible semantic controls.
 
 ## Data and product rules
