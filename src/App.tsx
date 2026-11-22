@@ -1306,6 +1306,7 @@ function App() {
                       alt=""
                       width="208"
                       height="178"
+                      fetchPriority="high"
                     />
                     <div className="aqi-illustration-caption">
                       <span>US AQI</span>
