@@ -108,7 +108,32 @@ async function fulfillDailyWeatherRange(route: Route) {
   })
 }
 
+async function mockIpLocation(
+  page: Page,
+  location?: { latitude: number; longitude: number; city?: string },
+) {
+  await page.route(/ipwho\.is|freeipapi\.com/, async (route) => {
+    if (location) {
+      await route.fulfill({
+        json: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          city: location.city,
+          cityName: location.city,
+          success: true,
+        },
+      })
+    } else {
+      await route.abort()
+    }
+  })
+}
+
 async function mockWeather(page: Page, response?: (route: Route) => Promise<void>) {
+  await page.route(/ipwho\.is|freeipapi\.com/, async (route) => {
+    await route.abort()
+  })
+
   await page.route(weatherApiPattern, async (route) => {
     const url = new URL(route.request().url())
     if (url.searchParams.get('forecast_days') === '16') {
@@ -164,6 +189,9 @@ async function mockAirQuality(
 }
 
 test.beforeEach(async ({ page }) => {
+  await page.route(/ipwho\.is|freeipapi\.com/, async (route) => {
+    await route.abort()
+  })
   await page.route(archiveApiPattern, async (route) => {
     await fulfillDailyWeatherRange(route)
   })
@@ -398,9 +426,7 @@ test('opens the Air quality tab by default and loads selected-city data', async 
       name: 'Refresh weather for Delhi',
     }),
   ).toBeVisible()
-  await expect(
-    page.getByText('Air quality · Model-based estimates'),
-  ).toBeVisible()
+  await expect(page.locator('.data-footnote')).toContainText('model-based')
 
   await selectCityBySearch(page, 'Pune')
   await page.getByRole('tab', { name: 'Air quality' }).click()
@@ -1499,9 +1525,7 @@ test('supports tab keyboard navigation and a narrow mobile viewport', async ({
   await mockAirQuality(page)
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto('/')
-  await expect(
-    page.getByText('Air quality · Model-based estimates'),
-  ).toBeVisible()
+  await expect(page.locator('.data-footnote')).toContainText('model-based')
 
   const weatherTab = page.getByRole('tab', { name: 'Weather' })
   const aqiTab = page.getByRole('tab', { name: 'Air quality' })
@@ -1584,12 +1608,8 @@ test('shows source population and licensing without adding a Census tab', async 
   await mockWeather(page)
   await page.goto('/')
 
-  const cityDetails = page.locator('.city-details')
-  await expect(cityDetails.locator('summary')).toHaveText('City information')
-  await expect(cityDetails).not.toHaveAttribute('open', '')
-  await cityDetails.locator('summary').click()
   await expect(
-    cityDetails.getByText('2011 Census population: 1,10,34,555'),
+    page.locator('.city-population').getByText('2011 Census population: 1,10,34,555'),
   ).toBeVisible()
   const search = page.getByRole('combobox', { name: 'Search cities' })
   await search.fill('Mumbai')
@@ -1998,4 +2018,42 @@ test('displays share icons under illustration and primary pollutant tag next to 
   const primaryTag = page.locator('.pollutant-label-row .primary-tag')
   await expect(primaryTag).toBeVisible()
   await expect(primaryTag).toHaveText('Primary')
+})
+
+test('passively opens the nearest city on load if location permission is already granted', async ({
+  context,
+  page,
+}) => {
+  await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:4173' })
+  await context.setGeolocation({ latitude: 18.5204, longitude: 73.8567 }) // Pune coordinates
+  await mockWeather(page)
+
+  await page.goto('/')
+
+  // Automatically opens Pune without clicking "Use my location"
+  await expect(page.getByRole('heading', { name: 'Pune, Maharashtra' })).toBeVisible()
+})
+
+test('falls back to IP-based location on load when geolocation is not granted without flashing Delhi', async ({
+  page,
+}) => {
+  await mockWeather(page)
+  // Mock IP location resolving to Mumbai with slight delay to ensure placeholder is shown
+  await mockIpLocation(page, { latitude: 19.076, longitude: 72.8777, city: 'Mumbai' })
+
+  await page.goto('/')
+
+  // Automatically opens Mumbai via IP fallback without any prompt
+  await expect(page.getByRole('heading', { name: 'Mumbai, Maharashtra' })).toBeVisible()
+
+  // Verify Delhi was never kept as the city
+  await expect(page.getByRole('heading', { name: 'Delhi, Delhi' })).not.toBeVisible()
+
+  // Verify city was cached in localStorage
+  const cachedCity = await page.evaluate(() => localStorage.getItem('breathesafe_selected_city'))
+  expect(cachedCity).toBe('mumbai')
+
+  // On page reload, it opens Mumbai directly from cache
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Mumbai, Maharashtra' })).toBeVisible()
 })

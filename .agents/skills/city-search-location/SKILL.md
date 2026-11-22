@@ -10,8 +10,16 @@ description: Guidance for BreatheSafe's searchable India city picker and opt-in 
 - Replace the native city select with a searchable, keyboard-operable city picker inspired by the supplied reference.
 - Support deep URL query routing and bookmarking (`?city=...&tab=...`), synchronizing with browser history (`pushState` / `popstate`) and updating document titles dynamically.
 - Support the 339 Indian city entries in Wikipedia's “List of cities in India by population” table above 100,000, using the listed 2011 population values and coordinates. Use Delhi as the initial city.
-- Offer an explicit device-location action. Do not request location automatically or persist precise device coordinates.
-- Resolve device coordinates to the nearest supported city and continue using that city's maintained coordinates for existing Open-Meteo weather and air-quality requests.
+- Offer an explicit device-location action.
+- City resolution fallback hierarchy on initial load:
+  1. **URL parameter:** If `?city=...` is present in the URL, respect that city immediately.
+  2. **Local cache:** If the user previously selected or resolved a city, load it synchronously from `localStorage` (`breathesafe_selected_city`) for 0ms instantaneous display with zero flash.
+  3. **Device GPS:** If location permission was already granted in the browser (`permissionStatus.state === 'granted'`), passively resolve the closest supported city without prompting.
+  4. **IP-based Geolocation:** If GPS permission is not granted ('prompt' or 'denied'), passively resolve closest city via IP address (`ipwho.is` / `freeipapi.com`), requiring zero permissions and showing no prompts.
+  5. **Default fallback:** If IP lookup is unavailable or fails, default cleanly to Delhi.
+- **Zero-flash resolution:** During initial uncached resolution, an `isResolvingInitialCity` state presents a clean, calm placeholder skeleton ("Finding nearest city…") instead of briefly rendering Delhi and abruptly swapping to the nearest city.
+- Never trigger a location permission prompt automatically on load.
+- Resolve device coordinates to the nearest supported city and continue using that city's maintained coordinates for existing Open-Meteo weather and air-quality requests. Never persist precise coordinates.
 - Keep Delhi as the fallback city when location is not requested or unavailable.
 
 ## Domain and implementation guidance

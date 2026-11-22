@@ -24,18 +24,19 @@ description: Guidance for clarifying BreatheSafe AQI freshness, category meaning
 ## Acceptance criteria
 
 1. The selected city's AQI model time is adjacent to the current score and appears only once.
-2. The pollutant section retains clear model-data context without repeating the same phrase on every card.
+2. The pollutant section retains clear model-data context without repeating the same phrase on every card. Model-based data limitations are cleanly stated in the page footer and illustration subtext rather than a cluttered top banner.
 3. The category explanation matches the selected category, is keyboard-accessible, and links to AirNow AQI Basics.
-4. The Census population is accessible through a collapsed city-details disclosure and remains labeled with its source year.
+4. The Census population is displayed directly under the city name as a clean one-liner labeled with its source year, with no disclosure/chevron clutter.
 5. The weather panel is labeled as a 30-day calendar, not a 30-day forecast.
-6. Playwright covers category guidance, timestamp placement, disclosure behavior, calendar naming, and responsive layout.
+6. Playwright covers category guidance, timestamp placement, calendar naming, and responsive layout.
 
 ## Implemented behavior
 
 - The AQI score block contains the model time; the lower attribution row retains only source, licence, and refresh controls.
 - The AQI overview includes a collapsed native disclosure with one of six AirNow category descriptions and a link to AQI Basics.
 - Pollutant cards show the pollutant name and concentration without repeating the model-estimate label.
-- Census population appears inside a collapsed City information disclosure with the 2011 year explicit.
+- Census population appears directly under the city name as a clean one-liner with the 2011 year explicit.
+- Model-based limitations are stated in the footer note and illustration badge, eliminating redundant top banners.
 - The monthly view title uses “30-day weather calendar” to reflect its historical, forecast, and typical data sources.
 
 ## Verification

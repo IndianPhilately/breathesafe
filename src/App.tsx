@@ -33,6 +33,7 @@ import {
 import { AirQualityHistoryChart } from './components/AirQualityHistoryChart'
 import { MetroCityAqiTiles } from './components/MetroCityAqiTiles'
 import { HealthAdviceSection } from './components/HealthAdviceSection'
+import { fetchIpLocation } from './services/ipLocation'
 import { hasCityLandmark } from './data/metroCities'
 import './App.css'
 
@@ -119,22 +120,24 @@ function getAqiCategoryGuidance(category: string | null): string | null {
   }
 }
 
-function getInitialCity(): CityDashboardData {
-  const city = cityDashboardData.find((item) => item.id === 'delhi')
-  if (!city) {
-    throw new Error('The Delhi city is missing from the city data.')
+const CITY_STORAGE_KEY = 'breathesafe_selected_city'
+
+function getCachedCity(): CityDashboardData | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const cachedId = window.localStorage.getItem(CITY_STORAGE_KEY)?.toLowerCase().trim()
+    if (!cachedId) return null
+    return cityDashboardData.find((item) => item.id.toLowerCase() === cachedId) ?? null
+  } catch {
+    return null
   }
-  return city
 }
 
-const defaultCity = getInitialCity()
-const initialForecastMonth = getInitialForecastMonth()
-
-function getCityFromUrl(): CityDashboardData {
-  if (typeof window === 'undefined') return defaultCity
+function getCityFromUrl(): CityDashboardData | null {
+  if (typeof window === 'undefined') return null
   const params = new URLSearchParams(window.location.search)
   const cityParam = params.get('city')?.toLowerCase().trim()
-  if (!cityParam) return defaultCity
+  if (!cityParam) return null
 
   const found = cityDashboardData.find(
     (item) =>
@@ -142,8 +145,34 @@ function getCityFromUrl(): CityDashboardData {
       item.city.toLowerCase() === cityParam ||
       item.searchAliases?.some((alias) => alias.toLowerCase() === cityParam),
   )
-  return found ?? defaultCity
+  return found ?? null
 }
+
+function hasCityInUrl(): boolean {
+  if (typeof window === 'undefined') return false
+  const params = new URLSearchParams(window.location.search)
+  return Boolean(params.get('city')?.trim())
+}
+
+const initialUrlHasCity = hasCityInUrl()
+const initialCachedCity = getCachedCity()
+const hasExplicitInitialCity = Boolean(initialUrlHasCity || initialCachedCity)
+
+function getInitialCity(): CityDashboardData {
+  const urlCity = getCityFromUrl()
+  if (urlCity) return urlCity
+
+  if (initialCachedCity) return initialCachedCity
+
+  const defaultCity = cityDashboardData.find((item) => item.id === 'delhi')
+  if (!defaultCity) {
+    throw new Error('The Delhi city is missing from the city data.')
+  }
+  return defaultCity
+}
+
+const defaultCity = cityDashboardData.find((item) => item.id === 'delhi')!
+const initialForecastMonth = getInitialForecastMonth()
 
 function getTabFromUrl(): DashboardTab {
   if (typeof window === 'undefined') return 'aqi'
@@ -153,8 +182,11 @@ function getTabFromUrl(): DashboardTab {
 }
 
 function App() {
+  const [isResolvingInitialCity, setIsResolvingInitialCity] = useState(
+    () => !hasExplicitInitialCity,
+  )
   const [selectedCity, setSelectedCity] = useState<CityDashboardData>(() =>
-    getCityFromUrl(),
+    getInitialCity(),
   )
   const [citySearch, setCitySearch] = useState('')
   const [isCityListOpen, setIsCityListOpen] = useState(false)
@@ -171,19 +203,19 @@ function App() {
   const [refreshVersion, setRefreshVersion] = useState(0)
   const [airQualityRefreshVersion, setAirQualityRefreshVersion] = useState(0)
   const [weatherState, setWeatherState] = useState<WeatherLoadState>(() => ({
-    cityId: getCityFromUrl().id,
+    cityId: getInitialCity().id,
     status: 'loading',
   }))
   const [airQualityState, setAirQualityState] = useState<AirQualityLoadState>(
     () => ({
-      cityId: getCityFromUrl().id,
+      cityId: getInitialCity().id,
       status: 'loading',
     }),
   )
   const [shareFeedback, setShareFeedback] = useState<string | null>(null)
   const [monthlyWeatherState, setMonthlyWeatherState] =
     useState<MonthlyWeatherLoadState>(() => ({
-      cityId: getCityFromUrl().id,
+      cityId: getInitialCity().id,
       month: initialForecastMonth,
       status: 'loading',
     }))
@@ -192,17 +224,33 @@ function App() {
 
   // Update document title for bookmarking
   useEffect(() => {
-    document.title = `${selectedCity.city} Air Quality & Weather · BreatheSafe`
-  }, [selectedCity.city])
+    if (isResolvingInitialCity) {
+      document.title = 'BreatheSafe · Live Air Quality & Weather in India'
+    } else {
+      document.title = `${selectedCity.city} Air Quality & Weather · BreatheSafe`
+    }
+  }, [isResolvingInitialCity, selectedCity.city])
+
+  const isInitialMount = useRef(true)
 
   // Sync city & tab to URL search params
   useEffect(() => {
+    if (isResolvingInitialCity) return
+
     const url = new URL(window.location.href)
     const currentCityParam = url.searchParams.get('city')
     const currentTabParam = url.searchParams.get('tab')
 
     const targetCityParam = selectedCity.id
     const targetTabParam = activeTab === 'weather' ? 'weather' : null
+
+    // On initial mount if no city was explicitly in URL, no cached city, and we are on default city, don't force ?city=delhi
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      if (!initialUrlHasCity && !initialCachedCity && targetCityParam === defaultCity.id && !targetTabParam) {
+        return
+      }
+    }
 
     const cityChanged = currentCityParam !== targetCityParam
     const tabChanged = (currentTabParam ?? null) !== targetTabParam
@@ -216,7 +264,7 @@ function App() {
       url.searchParams.delete('tab')
     }
 
-    // Push new history entry if city changed; replaceState if only tab changed
+    // Push new history entry if city changed; replaceState if only tab changed or initial resolution
     if (cityChanged && currentCityParam !== null) {
       window.history.pushState(
         { cityId: selectedCity.id, tab: activeTab },
@@ -230,13 +278,14 @@ function App() {
         url.toString(),
       )
     }
-  }, [selectedCity.id, activeTab])
+  }, [isResolvingInitialCity, selectedCity.id, activeTab])
 
   // Handle browser Back / Forward (popstate)
   useEffect(() => {
     function handlePopState() {
-      const city = getCityFromUrl()
+      const city = getCityFromUrl() ?? defaultCity
       const tab = getTabFromUrl()
+      setIsResolvingInitialCity(false)
       setSelectedCity(city)
       setActiveTab(tab)
       setCitySearch('')
@@ -256,6 +305,8 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (isResolvingInitialCity) return
+
     const controller = new AbortController()
     let active = true
     let timedOut = false
@@ -303,6 +354,7 @@ function App() {
       controller.abort()
     }
   }, [
+    isResolvingInitialCity,
     refreshVersion,
     selectedCity.id,
     selectedCity.latitude,
@@ -310,7 +362,7 @@ function App() {
   ])
 
   useEffect(() => {
-    if (activeTab !== 'aqi') return
+    if (isResolvingInitialCity || activeTab !== 'aqi') return
 
     const controller = new AbortController()
     let active = true
@@ -359,6 +411,7 @@ function App() {
       controller.abort()
     }
   }, [
+    isResolvingInitialCity,
     activeTab,
     airQualityRefreshVersion,
     selectedCity.id,
@@ -367,7 +420,7 @@ function App() {
   ])
 
   useEffect(() => {
-    if (activeTab !== 'weather') return
+    if (isResolvingInitialCity || activeTab !== 'weather') return
 
     const controller = new AbortController()
     let active = true
@@ -417,6 +470,7 @@ function App() {
       controller.abort()
     }
   }, [
+    isResolvingInitialCity,
     activeTab,
     forecastMonth,
     forecastRefreshVersion,
@@ -516,7 +570,13 @@ function App() {
 
   function selectCity(city: CityDashboardData) {
     locationRequestId.current += 1
+    setIsResolvingInitialCity(false)
     setSelectedCity(city)
+    try {
+      window.localStorage.setItem(CITY_STORAGE_KEY, city.id)
+    } catch {
+      // Ignore quota/private browsing issues
+    }
     setCitySearch('')
     setIsCityListOpen(false)
     setActiveCityIndex(-1)
@@ -624,6 +684,92 @@ function App() {
       { enableHighAccuracy: false, maximumAge: 300_000, timeout: 15_000 },
     )
   }
+
+  // Open closest city on initial load:
+  // 1. If GPS permission is ALREADY granted ('granted'), silently use device GPS.
+  // 2. Otherwise (if 'prompt' or 'denied'), silently fall back to IP-based geolocation (no permission needed).
+  // 3. If IP lookup also fails, cleanly default to Delhi.
+  // While resolving, isResolvingInitialCity is true, which avoids rendering Delhi and prevents any visual flash.
+  useEffect(() => {
+    if (hasExplicitInitialCity) return
+
+    let active = true
+    const controller = new AbortController()
+    const requestId = ++locationRequestId.current
+
+    // Safety timeout: if both GPS & IP take longer than 800ms, fall back to default cleanly
+    const safetyTimeoutId = window.setTimeout(() => {
+      if (active && requestId === locationRequestId.current) {
+        setIsResolvingInitialCity(false)
+      }
+    }, 800)
+
+    function finishWithCity(city: CityDashboardData) {
+      if (!active || requestId !== locationRequestId.current) return
+      window.clearTimeout(safetyTimeoutId)
+      selectCity(city)
+      setIsResolvingInitialCity(false)
+    }
+
+    async function fallbackToIp() {
+      if (!active) return
+      try {
+        const ipLocation = await fetchIpLocation(controller.signal)
+        if (!active || !ipLocation || requestId !== locationRequestId.current) {
+          finishWithCity(defaultCity)
+          return
+        }
+        const city = findNearestCity(ipLocation.latitude, ipLocation.longitude)
+        finishWithCity(city)
+      } catch {
+        finishWithCity(defaultCity)
+      }
+    }
+
+    async function resolveInitialCity() {
+      if (
+        typeof navigator !== 'undefined' &&
+        navigator.permissions?.query &&
+        navigator.geolocation
+      ) {
+        try {
+          const permissionStatus = await navigator.permissions.query({
+            name: 'geolocation',
+          })
+          if (permissionStatus.state === 'granted') {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                if (!active || requestId !== locationRequestId.current) return
+                const city = findNearestCity(
+                  position.coords.latitude,
+                  position.coords.longitude,
+                )
+                finishWithCity(city)
+              },
+              () => {
+                void fallbackToIp()
+              },
+              { enableHighAccuracy: false, maximumAge: 600_000, timeout: 2_000 },
+            )
+            return
+          }
+        } catch {
+          // Permissions query failed, proceed to IP fallback
+        }
+      }
+
+      await fallbackToIp()
+    }
+
+    void resolveInitialCity()
+
+    return () => {
+      active = false
+      window.clearTimeout(safetyTimeoutId)
+      controller.abort()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="dashboard">
@@ -816,51 +962,51 @@ function App() {
       <main className="main-content">
         <div className="location-heading">
           <p className="eyebrow">India city dashboard</p>
-          <div className="location-title-row">
-            {hasCityLandmark(selectedCity.id) && (
-              <img
-                className="location-landmark"
-                src={`/cities/${selectedCity.id}.webp`}
-                alt=""
-                width="84"
-                height="64"
-                loading="eager"
-              />
-            )}
-            <div className="location-title-text">
-              <h1>
-                {selectedCity.city}
-                <span className="heading-comma">, </span>
-                <span className="state-name">{selectedCity.state}</span>
-              </h1>
-              <p className="location-subtitle">
-                A simple snapshot of the weather and air around your city.
-              </p>
+          {isResolvingInitialCity ? (
+            <div className="location-title-row location-resolving" aria-live="polite">
+              <div className="location-landmark-placeholder" aria-hidden="true">
+                <span className="location-landmark-pulse" />
+              </div>
+              <div className="location-title-text">
+                <h1 className="location-resolving-heading">
+                  <span className="location-resolving-spinner" aria-hidden="true" />
+                  Finding nearest city…
+                </h1>
+                <p className="location-subtitle">
+                  Detecting your local area to show nearby air quality and weather.
+                </p>
+              </div>
             </div>
-          </div>
-          <details className="city-details">
-            <summary>City information</summary>
-            <p className="city-population">
-              {CITY_POPULATION_YEAR} Census population:{' '}
-              <strong>
-                {populationFormatter.format(selectedCity.population)}
-              </strong>
-            </p>
-          </details>
-        </div>
-
-        <div
-          className="data-notice"
-          role="note"
-          aria-label="Air quality data limitations"
-        >
-          <span className="data-notice-dot" aria-hidden="true" />
-          <span>
-            <strong>Air quality · Model-based estimates</strong>
-            <span className="notice-detail">
-              US AQI is not CPCB India AQI or a local monitoring-station reading.
-            </span>
-          </span>
+          ) : (
+            <div className="location-title-row">
+              {hasCityLandmark(selectedCity.id) && (
+                <img
+                  className="location-landmark"
+                  src={`/cities/${selectedCity.id}.webp`}
+                  alt=""
+                  width="84"
+                  height="64"
+                  loading="eager"
+                />
+              )}
+              <div className="location-title-text">
+                <h1>
+                  {selectedCity.city}
+                  <span className="heading-comma">, </span>
+                  <span className="state-name">{selectedCity.state}</span>
+                </h1>
+                <p className="city-population">
+                  {CITY_POPULATION_YEAR} Census population:{' '}
+                  <strong>
+                    {populationFormatter.format(selectedCity.population)}
+                  </strong>
+                </p>
+                <p className="location-subtitle">
+                  A simple snapshot of the weather and air around your city.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         <section className="dashboard-card" aria-label="City conditions">
@@ -953,7 +1099,12 @@ function App() {
               </div>
             </div>
 
-            {selectedWeatherState?.status === 'loading' ? (
+            {isResolvingInitialCity ? (
+              <div className="weather-state" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                Finding nearest city to load current weather…
+              </div>
+            ) : selectedWeatherState?.status === 'loading' ? (
               <div className="weather-state" role="status" aria-live="polite">
                 <span className="loading-spinner" aria-hidden="true" />
                 Loading current weather for {selectedCity.city}…
@@ -1260,7 +1411,12 @@ function App() {
               ) : null}
             </div>
 
-            {selectedAirQualityState?.status === 'loading' ? (
+            {isResolvingInitialCity ? (
+              <div className="aqi-state" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                Finding nearest city to load live air quality…
+              </div>
+            ) : selectedAirQualityState?.status === 'loading' ? (
               <div className="aqi-state" role="status" aria-live="polite">
                 <span className="loading-spinner" aria-hidden="true" />
                 Loading current air quality for {selectedCity.city}…
@@ -1466,7 +1622,12 @@ function App() {
               </span>
             </div>
 
-            {selectedMonthlyWeatherState?.status === 'loading' ? (
+            {isResolvingInitialCity ? (
+              <div className="forecast-state" role="status" aria-live="polite">
+                <span className="loading-spinner" aria-hidden="true" />
+                Finding nearest city to load weather forecast…
+              </div>
+            ) : selectedMonthlyWeatherState?.status === 'loading' ? (
               <div className="forecast-state" role="status" aria-live="polite">
                 <span className="loading-spinner" aria-hidden="true" />
                 Loading {formatForecastMonth(forecastMonth)} weather for{' '}
