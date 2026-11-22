@@ -31,6 +31,7 @@ import {
 } from './services/openMeteoMonthly'
 import { AirQualityHistoryChart } from './components/AirQualityHistoryChart'
 import { MetroCityAqiTiles } from './components/MetroCityAqiTiles'
+import { HealthAdviceSection } from './components/HealthAdviceSection'
 import { hasCityLandmark } from './data/metroCities'
 import './App.css'
 
@@ -1069,6 +1070,12 @@ function App() {
                     ))}
                   </div>
                 </section>
+
+                <HealthAdviceSection
+                  cityName={selectedCity.city}
+                  usAqi={selectedAirQualityState.airQuality.usAqi}
+                  pm25={selectedAirQualityState.airQuality.pm25}
+                />
 
                 <AirQualityHistoryChart
                   active={activeTab === 'aqi'}

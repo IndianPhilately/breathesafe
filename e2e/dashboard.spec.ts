@@ -1918,3 +1918,34 @@ test('displays metro cities quick comparison AQI tiles and navigates to selected
     page.getByRole('heading', { name: 'Mumbai, Maharashtra' }),
   ).toBeVisible()
 })
+
+test('displays health advice with Berkeley Earth cigarette equivalency and dynamic solutions', async ({
+  page,
+}) => {
+  await mockWeather(page)
+
+  await page.goto('/')
+
+  const healthCard = page.locator('.health-advice-card')
+  await expect(healthCard).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: /Health advice for people in Delhi/ }),
+  ).toBeVisible()
+
+  // PM2.5 in fixture is 40.4 µg/m³ -> 40.4 / 22 = 1.8 cigarettes/day
+  await expect(healthCard.locator('.cigarette-count-number')).toContainText('1.8')
+  await expect(healthCard.locator('.cigarette-statement')).toContainText('smoking 1.8 cigarettes a day')
+
+  // Weekly: 1.8 * 7 = 12.6
+  await expect(healthCard.locator('.period-item').first()).toContainText('12.6')
+
+  // Recommended actions should be displayed
+  const solutionTabs = healthCard.getByRole('tab')
+  await expect(solutionTabs).toHaveCount(4)
+
+  // Clicking a solution tab updates the callout details
+  const maskTab = healthCard.getByRole('tab', { name: /N95 Mask/ })
+  await expect(maskTab).toBeVisible()
+  await maskTab.click()
+  await expect(healthCard.locator('.health-solution-callout')).toContainText('wear an N95 mask')
+})
