@@ -26,7 +26,10 @@ Use Playwright Test to verify BreatheSafe behavior through real browser interact
 6. Make tests deterministic. Mock or intercept external AQI, weather, geolocation, and other third-party requests when those responses are not the behavior under test. Use explicit fixtures and label test data; never treat mock readings as live data. Do not call real production services or mutate production accounts/data.
 7. Prefer assertions against rendered output and user-observable behavior over implementation details. Keep test setup and fixtures small, typed, and reusable only when reuse improves clarity.
 8. Include responsive coverage at meaningful breakpoints for features whose layout or interaction changes by viewport. Check keyboard interaction and accessible names for interactive controls where relevant.
-9. Run the focused Playwright tests, then the project's build and lint checks when practical. Report the exact commands and results. If a browser, environment variable, or service prevents execution, report it as blocked; do not describe an unrun test as passing.
+9. **Test execution strategy (Fast feedback vs. Full suite):**
+   - **During active development / iterative changes:** Run only the focused test matching the affected feature area (e.g. `npx playwright test -g "<feature-keyword>"`). Also run quick build and lint checks (`npm run build && npm run lint`).
+   - **Before commit / final verification:** Run the full E2E test suite (`npm run test:e2e`) to guarantee zero regressions across the whole app.
+   - Report the exact commands and results. If a browser, environment variable, or service prevents execution, report it as blocked; do not describe an unrun test as passing.
 10. Inspect failures and fix root causes rather than weakening assertions. Retain the configured trace, screenshot, or video artifacts on failure and use them to diagnose issues. Do not add generated test artifacts to Git unless the project intentionally versions them.
 11. Review the tests for determinism, coverage of the approved criteria, accessibility, and maintainability. Update the feature-specific skill with verified test commands and behavior when the feature is complete.
 

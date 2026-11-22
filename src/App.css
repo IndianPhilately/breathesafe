@@ -305,11 +305,30 @@
   flex: 1 0 auto;
   width: min(100% - 48px, 960px);
   margin: 0 auto;
-  padding: clamp(36px, 7vw, 78px) 0 48px;
+  padding: clamp(20px, 3.5vw, 36px) 0 48px;
 }
 
 .location-heading {
   margin-bottom: 28px;
+}
+
+.location-title-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.location-landmark {
+  width: 78px;
+  height: 60px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 10%));
+}
+
+.location-title-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .eyebrow {
@@ -1633,11 +1652,20 @@
   }
 
   .main-content {
-    padding-top: 36px;
+    padding-top: 20px;
   }
 
   .location-heading {
     margin-bottom: 22px;
+  }
+
+  .location-title-row {
+    gap: 12px;
+  }
+
+  .location-landmark {
+    width: 56px;
+    height: 44px;
   }
 
   .data-notice {
@@ -1871,5 +1899,215 @@
       background-color 140ms ease,
       color 140ms ease,
       border-color 140ms ease;
+  }
+}
+
+/* ─── Metro City AQI Tiles ─────────────────────────────────────────────────── */
+
+.metro-aqi-section {
+  margin-top: 28px;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid #e3ebe5;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #fbfdfb 0%, #f4f8f5 100%);
+}
+
+.metro-aqi-header {
+  margin-bottom: 20px;
+}
+
+.metro-aqi-header h2 {
+  margin: 0;
+  color: #2b4135;
+  font-size: clamp(18px, 3vw, 22px);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+}
+
+.metro-aqi-intro {
+  margin: 6px 0 0;
+  color: #718177;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.metro-aqi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.metro-aqi-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 14px 14px 14px;
+  border: 1px solid #dde8e1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(34 67 48 / 5%);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 120ms ease;
+}
+
+.metro-aqi-tile:hover {
+  border-color: #b6d4c0;
+  box-shadow: 0 6px 20px rgb(34 67 48 / 10%);
+  transform: translateY(-2px);
+}
+
+.metro-aqi-tile:focus-visible {
+  outline: 3px solid #75b8ff;
+  outline-offset: 2px;
+}
+
+.metro-aqi-tile:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgb(34 67 48 / 7%);
+}
+
+.metro-tile-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.metro-tile-image {
+  width: 52px;
+  height: 40px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgb(0 0 0 / 7%));
+}
+
+.metro-tile-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.metro-tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.metro-tile-city {
+  color: #253a30;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metro-tile-state {
+  color: #8ba294;
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metro-tile-aqi {
+  margin-top: 2px;
+  font-size: clamp(28px, 5vw, 36px);
+  font-weight: 650;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metro-tile-category {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  opacity: 0.9;
+}
+
+.metro-tile-aqi-loading {
+  display: flex;
+  margin-top: 6px;
+  align-items: center;
+}
+
+.metro-tile-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d6e3da;
+  border-top-color: #4a9b69;
+  border-radius: 50%;
+  animation: metro-spin 0.75s linear infinite;
+}
+
+@keyframes metro-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.metro-tile-error {
+  margin-top: 6px;
+  color: #9aada3;
+  font-size: 20px;
+  font-weight: 300;
+}
+
+/* ─── Metro tiles: responsive breakpoints ───────────────────────────────────── */
+
+@media (max-width: 800px) {
+  .metro-aqi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .metro-aqi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .metro-aqi-tile {
+    padding: 11px 11px 11px;
+    gap: 8px;
+  }
+
+  .metro-tile-image {
+    width: 42px;
+    height: 32px;
+  }
+
+  .metro-tile-city {
+    font-size: 12px;
+  }
+
+  .metro-tile-aqi {
+    font-size: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metro-aqi-tile {
+    transition: none;
+  }
+
+  .metro-tile-spinner {
+    animation: none;
+    border-top-color: #4a9b69;
   }
 }

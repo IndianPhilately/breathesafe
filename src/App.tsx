@@ -30,6 +30,8 @@ import {
   type MonthlyWeatherData,
 } from './services/openMeteoMonthly'
 import { AirQualityHistoryChart } from './components/AirQualityHistoryChart'
+import { MetroCityAqiTiles } from './components/MetroCityAqiTiles'
+import { hasCityLandmark } from './data/metroCities'
 import './App.css'
 
 const populationFormatter = new Intl.NumberFormat('en-IN')
@@ -719,14 +721,28 @@ function App() {
       <main className="main-content">
         <div className="location-heading">
           <p className="eyebrow">India city dashboard</p>
-          <h1>
-            {selectedCity.city}
-            <span className="heading-comma">, </span>
-            <span className="state-name">{selectedCity.state}</span>
-          </h1>
-          <p className="location-subtitle">
-            A simple snapshot of the weather and air around your city.
-          </p>
+          <div className="location-title-row">
+            {hasCityLandmark(selectedCity.id) && (
+              <img
+                className="location-landmark"
+                src={`/cities/${selectedCity.id}.webp`}
+                alt=""
+                width="84"
+                height="64"
+                loading="eager"
+              />
+            )}
+            <div className="location-title-text">
+              <h1>
+                {selectedCity.city}
+                <span className="heading-comma">, </span>
+                <span className="state-name">{selectedCity.state}</span>
+              </h1>
+              <p className="location-subtitle">
+                A simple snapshot of the weather and air around your city.
+              </p>
+            </div>
+          </div>
           <details className="city-details">
             <summary>City information</summary>
             <p className="city-population">
@@ -1061,6 +1077,17 @@ function App() {
                   latitude={selectedCity.latitude}
                   longitude={selectedCity.longitude}
                   refreshVersion={airQualityRefreshVersion}
+                />
+
+                <MetroCityAqiTiles
+                  cities={cityDashboardData}
+                  active={activeTab === 'aqi'}
+                  onCitySelect={(city) => {
+                    setSelectedCity(city)
+                    setCitySearch('')
+                    setIsCityListOpen(false)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
                 />
 
                 <div className="weather-meta">

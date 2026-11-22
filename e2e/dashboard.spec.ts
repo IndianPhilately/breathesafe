@@ -142,6 +142,18 @@ async function mockAirQuality(
       return
     }
 
+    if (url.searchParams.get('current') === 'us_aqi') {
+      await route.fulfill({
+        json: {
+          current: {
+            time: '2026-11-14T01:30',
+            us_aqi: 95,
+          },
+        },
+      })
+      return
+    }
+
     if (response) {
       await response(route)
       return
@@ -1253,6 +1265,18 @@ test('a late response for the previous city cannot replace the selected city', a
 
   await page.route(weatherApiPattern, async (route) => {
     const url = new URL(route.request().url())
+    if (url.searchParams.get('current') === 'us_aqi') {
+      await route.fulfill({
+        json: {
+          current: {
+            time: '2026-11-14T01:30',
+            us_aqi: 95,
+          },
+        },
+      })
+      return
+    }
+
     if (url.searchParams.get('latitude') === '28.7041') {
       markDelhiRequestStarted?.()
       await delhiResponseGate
@@ -1415,6 +1439,18 @@ test('a late AQI response for a previous city cannot replace the selection', asy
   await mockWeather(page)
   await page.route(airQualityApiPattern, async (route) => {
     const url = new URL(route.request().url())
+    if (url.searchParams.get('current') === 'us_aqi') {
+      await route.fulfill({
+        json: {
+          current: {
+            time: '2026-11-14T01:30',
+            us_aqi: 95,
+          },
+        },
+      })
+      return
+    }
+
     if (url.searchParams.get('latitude') === '28.7041') {
       markDelhiRequestStarted?.()
       try {
@@ -1446,13 +1482,13 @@ test('a late AQI response for a previous city cannot replace the selection', asy
   )
 
   await selectCityBySearch(page, 'Pune')
-  await expect(page.getByText('151', { exact: true })).toBeVisible()
+  await expect(page.locator('.aqi-overview').getByText('151', { exact: true })).toBeVisible()
   await previousCityRequestFailed
 
   releaseDelhiResponse?.()
   await delhiRouteFinished
   await expect(page.getByRole('heading', { name: 'Pune, Maharashtra' })).toBeVisible()
-  await expect(page.getByText('151', { exact: true })).toBeVisible()
+  await expect(page.locator('.aqi-overview').getByText('151', { exact: true })).toBeVisible()
   await expect(page.getByText('25', { exact: true })).toHaveCount(0)
 })
 
@@ -1630,7 +1666,7 @@ test('uses device location on request to select the nearest supported city', asy
   await expect(
     page.getByRole('heading', { name: 'Bengaluru, Karnataka' }),
   ).toBeVisible()
-  await expect(page.getByRole('status')).toContainText(
+  await expect(page.locator('.city-picker-message')).toContainText(
     'nearest supported city',
   )
   const locatedHeaderHeight = await page
@@ -1849,4 +1885,36 @@ test('rejects invalid forecast details rather than displaying partial weather', 
   )
   await expect(page.getByLabel('26 degrees Celsius')).toHaveCount(0)
   await expect(page.getByText('Chance of rain')).toHaveCount(0)
+})
+
+test('displays metro cities quick comparison AQI tiles and navigates to selected city on click', async ({
+  page,
+}) => {
+  await mockWeather(page)
+
+  await page.goto('/')
+
+  const metroSection = page.locator('.metro-aqi-section')
+  await expect(metroSection).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Major cities · Air Quality' }),
+  ).toBeVisible()
+
+  // 8 metro city tiles should be rendered
+  const tiles = metroSection.getByRole('listitem')
+  await expect(tiles).toHaveCount(8)
+
+  // Verify Mumbai tile displays AQI and Moderate category
+  const mumbaiTile = metroSection.getByRole('listitem', { name: /Mumbai/ })
+  await expect(mumbaiTile).toBeVisible()
+  await expect(mumbaiTile.getByText('95')).toBeVisible()
+  await expect(mumbaiTile.getByText('Moderate')).toBeVisible()
+
+  // Click on Mumbai tile to navigate
+  await mumbaiTile.click()
+
+  // City header should update to Mumbai, Maharashtra
+  await expect(
+    page.getByRole('heading', { name: 'Mumbai, Maharashtra' }),
+  ).toBeVisible()
 })
