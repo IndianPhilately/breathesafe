@@ -435,6 +435,7 @@
 }
 
 .dashboard-card {
+  min-height: 850px;
   overflow: hidden;
   border: 1px solid #e1e9e4;
   border-radius: 20px;
@@ -514,8 +515,8 @@
 
 .aqi-overview {
   display: flex;
-  min-height: 190px;
-  align-items: center;
+  min-height: 280px;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
   padding: 0 0 24px;
@@ -1415,10 +1416,6 @@
   }
 }
 
-.aqi-overview {
-  min-height: 190px;
-}
-
 .aqi-guidance {
   margin-bottom: 18px;
   padding: 12px 14px;
@@ -1695,9 +1692,14 @@
     font-size: 13px;
   }
 
-  .weather-overview,
-  .aqi-overview {
+  .weather-overview {
     min-height: 160px;
+    gap: 8px;
+    padding: 0 0 24px;
+  }
+
+  .aqi-overview {
+    min-height: 280px;
     gap: 8px;
     padding: 0 0 24px;
   }

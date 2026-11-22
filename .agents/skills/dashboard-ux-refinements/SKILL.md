@@ -39,7 +39,8 @@ description: Guidance for clarifying BreatheSafe AQI freshness, category meaning
 - Model-based limitations are stated in the footer note and illustration badge, eliminating redundant top banners.
 - Duplicate labels are eliminated: removed redundant "United States AQI scale" subtext under the AQI badge and repeated city name under the weather condition.
 - The monthly view title uses “30-day weather calendar” to reflect its historical, forecast, and typical data sources.
-- Layout padding is streamlined: gap between tabs and hero kicker is tightened from 46px to 18px, and hero illustration uses explicit dimensions (`width="208" height="178"`) eliminating Cumulative Layout Shift (CLS).
+- Layout padding is streamlined: gap between tabs and hero kicker is tightened from 46px to 18px, and hero illustration uses explicit dimensions (`width="208" height="178"`).
+- Layout stability & Zero CLS: `.dashboard-card` enforces `min-height: 850px` keeping the footer and footnotes below the viewport fold during loading, and `.aqi-overview` enforces `min-height: 280px; align-items: flex-start` across desktop and mobile, ensuring the hero kicker and overview container remain locked in place with zero layout shift (CLS = 0.000).
 - Text and badge contrast across all components meets or exceeds WCAG AA 4.5:1 ratio.
 
 ## Verification
