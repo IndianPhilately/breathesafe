@@ -22,6 +22,8 @@ description: Guidance for BreatheSafe's major Indian metro cities quick comparis
 - Optimized WebP landmark illustrations reside under `public/cities/<cityId>.webp`.
 - Abort in-flight requests when switching away from the Air quality tab or unmounting.
 - Provide clean loading spinners and graceful error fallbacks if a city's AQI request fails.
+- All category colors meet WCAG AA contrast against white backgrounds: Moderate (`#7d5b00`), Sensitive Groups (`#944908`), Unhealthy (`#b02e26`).
+- Mobile 2-column layout ensures all city names (including Ahmedabad) render in full without ellipsis truncation.
 
 ## Acceptance criteria
 

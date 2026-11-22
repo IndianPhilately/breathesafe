@@ -20,19 +20,19 @@ type MetroCityAqiTilesProps = {
 function aqiCategoryColor(category: string | null): string {
   switch (category) {
     case 'Good':
-      return '#4a9b69'
+      return '#317b51'
     case 'Moderate':
-      return '#c89d2a'
+      return '#7d5b00'
     case 'Unhealthy for Sensitive Groups':
-      return '#d47c30'
+      return '#944908'
     case 'Unhealthy':
-      return '#c0453d'
+      return '#b02e26'
     case 'Very Unhealthy':
       return '#8a3c8a'
     case 'Hazardous':
       return '#7a2020'
     default:
-      return '#73847a'
+      return '#546a5d'
   }
 }
 

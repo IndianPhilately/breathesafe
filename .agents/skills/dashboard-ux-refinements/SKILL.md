@@ -37,11 +37,14 @@ description: Guidance for clarifying BreatheSafe AQI freshness, category meaning
 - Pollutant cards show the pollutant name and concentration without repeating the model-estimate label.
 - Census population appears directly under the city name as a clean one-liner with the 2011 year explicit.
 - Model-based limitations are stated in the footer note and illustration badge, eliminating redundant top banners.
+- Duplicate labels are eliminated: removed redundant "United States AQI scale" subtext under the AQI badge and repeated city name under the weather condition.
 - The monthly view title uses “30-day weather calendar” to reflect its historical, forecast, and typical data sources.
+- Layout padding is streamlined: gap between tabs and hero kicker is tightened from 46px to 18px, and hero illustration uses explicit dimensions (`width="208" height="178"`) eliminating Cumulative Layout Shift (CLS).
+- Text and badge contrast across all components meets or exceeds WCAG AA 4.5:1 ratio.
 
 ## Verification
 
-- `npm.cmd run test:e2e` — 27 passed.
+- `npm.cmd run test:e2e` — 38 passed.
 - `npm.cmd run build` — passed.
 - `npm.cmd run lint` — passed.
 

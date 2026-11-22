@@ -46,6 +46,8 @@ description: Guidance for BreatheSafe's responsive historical US AQI and particu
 ## Verified implementation
 
 - The chart is rendered after the pollutant cards and keeps the selected city, metric, range, and chart style in the browser UI.
+- Subtitle provides an informative overview: "Track AQI, PM2.5, and PM10 changes over time."
+- Toggle buttons and metric labels use accessible WCAG AA contrast colors (`#46594d`, `#55685d`).
 - It requests 92 past days of Open-Meteo CAMS Global data only while the Air quality panel is active. The 24-hour window plots returned 3-hour samples; longer ranges aggregate daily maxima using India local dates.
 - The 3-month view filters to 90 days. 1 Year and 10 Years remain disabled with an explanation of the 92-day provider limit.
 - Missing values remain missing, and history failures can be retried without hiding current AQI data.

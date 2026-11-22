@@ -309,7 +309,7 @@
 }
 
 .location-heading {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .location-title-row {
@@ -445,7 +445,7 @@
 .tab-list {
   display: flex;
   gap: 8px;
-  padding: 14px 16px 0;
+  padding: 10px 16px 0;
   border-bottom: 1px solid #e8eee9;
 }
 
@@ -487,7 +487,7 @@
 }
 
 .tab-panel {
-  padding: clamp(22px, 5vw, 38px);
+  padding: 18px clamp(20px, 4vw, 36px) clamp(22px, 5vw, 36px);
 }
 
 .tab-panel[hidden] {
@@ -503,14 +503,22 @@
   border-top: 1px solid #e8eee9;
 }
 
-.weather-overview,
-.aqi-overview {
+.weather-overview {
   display: flex;
   min-height: 190px;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
   padding: 8px 8px 30px;
+}
+
+.aqi-overview {
+  display: flex;
+  min-height: 190px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 0 24px;
 }
 
 .panel-kicker {
@@ -540,7 +548,7 @@
 }
 
 .weather-condition {
-  margin: 12px 0 4px;
+  margin: 12px 0 28.415625px;
   color: #314a3c;
   font-size: 18px;
   font-weight: 600;
@@ -680,7 +688,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #65756a;
+  color: #46594d;
   font: inherit;
   font-size: 12px;
   font-weight: 650;
@@ -696,7 +704,7 @@
 .aqi-history-availability,
 .aqi-history-period,
 .aqi-history-source {
-  color: #718177;
+  color: #55685d;
   font-size: 11px;
   line-height: 1.5;
 }
@@ -2021,7 +2029,7 @@
 }
 
 .metro-tile-state {
-  color: #8ba294;
+  color: #576d60;
   font-size: 10.5px;
   font-weight: 500;
   white-space: nowrap;
@@ -2086,21 +2094,21 @@
 @media (max-width: 480px) {
   .metro-aqi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 9px;
-  }
-
-  .metro-aqi-tile {
-    padding: 11px 11px 11px;
     gap: 8px;
   }
 
+  .metro-aqi-tile {
+    padding: 10px 10px 10px;
+    gap: 7px;
+  }
+
   .metro-tile-image {
-    width: 42px;
-    height: 32px;
+    width: 40px;
+    height: 30px;
   }
 
   .metro-tile-city {
-    font-size: 12px;
+    font-size: 11.5px;
   }
 
   .metro-tile-aqi {
@@ -2147,7 +2155,7 @@
 
 .health-source-attribution {
   font-size: 11px;
-  color: #7b8e83;
+  color: #4a6354;
   background: #edf3ee;
   padding: 4px 10px;
   border-radius: 999px;
@@ -2202,7 +2210,7 @@
 
 .cigarette-count-caption small {
   font-size: 11px;
-  color: #7a8b80;
+  color: #586c60;
 }
 
 .cigarette-graphic {
@@ -2229,8 +2237,8 @@
 }
 
 @keyframes ember-pulse {
-  0% { fill: #ea580c; }
-  100% { fill: #f97316; }
+  0% { opacity: 0.65; }
+  100% { opacity: 1; }
 }
 
 @keyframes ember-glow {
@@ -2256,7 +2264,7 @@
 
 .period-label {
   font-size: 11px;
-  color: #76877c;
+  color: #54685c;
   font-weight: 500;
 }
 
@@ -2270,7 +2278,7 @@
 .period-value small {
   font-size: 11px;
   font-weight: 500;
-  color: #718177;
+  color: #4d6155;
 }
 
 .cigarette-statement {
@@ -2713,6 +2721,15 @@
   color: #265439;
   font-size: 12.5px;
   line-height: 1.35;
+}
+
+@media (max-width: 600px) {
+  .hero-best-window-callout {
+    font-size: 11px;
+    padding: 4px 8px;
+    gap: 5px;
+    line-height: 1.25;
+  }
 }
 
 .hero-best-window-callout strong {

@@ -388,7 +388,7 @@ export function AirQualityHistoryChart({
           <p className="panel-kicker">Historical air quality</p>
           <h2 id="aqi-history-heading">Air quality trend</h2>
           <p className="aqi-history-intro">
-            Modeled estimates for {cityName}; not local monitoring-station readings.
+            Track AQI, PM2.5, and PM10 changes over time.
           </p>
         </div>
         <div className="aqi-history-controls">

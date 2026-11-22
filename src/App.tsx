@@ -1129,9 +1129,6 @@ function App() {
                         selectedWeatherState.weather.weatherCode,
                       )}
                     </p>
-                    <p className="city-caption">
-                      {selectedCity.city}, {selectedCity.state}
-                    </p>
                     <p className="weather-range">
                       High: {Math.round(selectedWeatherState.weather.temperatureMaxC)}°C
                       <span aria-hidden="true"> · </span>
@@ -1283,7 +1280,6 @@ function App() {
                         </strong>
                       </span>
                     </div>
-                    <p className="city-caption">United States AQI scale</p>
                     <p className="observation-time aqi-model-time">
                       Model time{' '}
                       <time
@@ -1308,6 +1304,8 @@ function App() {
                       className="aqi-illustration"
                       src={`/aqi-${aqiIllustration}.webp`}
                       alt=""
+                      width="208"
+                      height="178"
                     />
                     <div className="aqi-illustration-caption">
                       <span>US AQI</span>
