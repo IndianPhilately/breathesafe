@@ -26,6 +26,7 @@ description: Guidance for BreatheSafe's searchable India city picker and opt-in 
 
 - Search city and state names locally, case-insensitively, with common-name aliases; present up to eight alphabetically sorted matches and show each result's 2011 population.
 - Attribute the adapted city list and population data to Wikipedia contributors and link the CC BY-SA 4.0 licence.
+- When search is focused while empty, display a row of quick-tap popular metro chips (`[Delhi]`, `[Mumbai]`, `[Bengaluru]`, `[Pune]`, etc.) for 1-tap city switching.
 - Use semantic combobox/listbox behavior, visible focus states, and keyboard navigation. Clearly expose loading and permission/error states for geolocation.
 - Device location is optional and requires a user action. A denied or unavailable location must leave the current selection unchanged.
 - Do not display sample weather or temperatures in city-search results.

@@ -10,6 +10,7 @@ description: Guidance for BreatheSafe's major Indian metro cities quick comparis
 - In the Air Quality tab under Historical Air Quality, display a set of quick-comparison tiles for India's major metro cities (Mumbai, Delhi, Bengaluru, Hyderabad, Chennai, Ahmedabad, Kolkata, Pune).
 - Fetch live model-based US AQI data from Open-Meteo for the featured metro cities concurrently when the Air Quality tab is open.
 - Display a direct comparison delta indicator on each tile relative to the currently active city (e.g. "45% cleaner", "+18% higher", or "Viewing" for active city).
+- Visually highlight the currently viewed city tile with an active green ring and elevation so users immediately see their baseline.
 - Clicking any tile navigates to that city's Air Quality page, updates the selected city, and smoothly scrolls to top.
 - Display corresponding 3D isometric landmark artwork for each featured metro city on its tile and in the top city header.
 - Match BreatheSafe's light sage / responsive UI design, accessible focus states, dark text readability, and color-coded AQI values.

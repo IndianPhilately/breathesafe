@@ -2057,3 +2057,32 @@ test('falls back to IP-based location on load when geolocation is not granted wi
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Mumbai, Maharashtra' })).toBeVisible()
 })
+
+test('displays popular metro quick chips, best outdoor window callout, and active metro tile', async ({
+  page,
+}) => {
+  await mockWeather(page)
+  await page.goto('/')
+
+  // Verify hero displays the best outdoor window callout
+  await expect(page.locator('.hero-best-window-callout')).toBeVisible()
+  await expect(page.locator('.hero-best-window-callout')).toContainText('Best outdoor window:')
+
+  // Verify vector cigarette graphic is rendered in health advice
+  await expect(page.locator('.cigarette-svg')).toBeVisible()
+
+  // Verify active metro tile highlight for Delhi
+  const activeTile = page.locator('.metro-aqi-tile.active-city-tile')
+  await expect(activeTile).toBeVisible()
+  await expect(activeTile.locator('.metro-tile-city')).toHaveText('Delhi')
+
+  // Focus search when empty and verify quick-tap popular metro chips appear
+  const searchInput = page.getByRole('combobox', { name: 'Search cities' })
+  await searchInput.focus()
+  await expect(page.locator('.city-quick-picks')).toBeVisible()
+  await expect(page.locator('.city-quick-chip', { hasText: 'Mumbai' })).toBeVisible()
+
+  // Click a quick chip to select Mumbai
+  await page.locator('.city-quick-chip', { hasText: 'Mumbai' }).click()
+  await expect(page.getByRole('heading', { name: 'Mumbai, Maharashtra' })).toBeVisible()
+})

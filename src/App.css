@@ -1965,6 +1965,12 @@
   transform: translateY(-2px);
 }
 
+.metro-aqi-tile.active-city-tile {
+  border-color: #43835a;
+  background: #f7fbf8;
+  box-shadow: 0 0 0 2px #43835a, 0 6px 18px rgb(67 131 90 / 12%);
+}
+
 .metro-aqi-tile:focus-visible {
   outline: 3px solid #75b8ff;
   outline-offset: 2px;
@@ -2202,14 +2208,39 @@
 .cigarette-graphic {
   display: flex;
   align-items: center;
-  font-size: 28px;
-  line-height: 1;
-  gap: 2px;
 }
 
-.cigarette-smoke {
-  font-size: 22px;
-  opacity: 0.8;
+.cigarette-svg {
+  width: 78px;
+  height: 24px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+}
+
+.cigarette-ember {
+  animation: ember-pulse 2s ease-in-out infinite alternate;
+}
+
+.cigarette-glow {
+  animation: ember-glow 2s ease-in-out infinite alternate;
+}
+
+.cigarette-smoke-wisp {
+  animation: smoke-drift 3s ease-in-out infinite alternate;
+}
+
+@keyframes ember-pulse {
+  0% { fill: #ea580c; }
+  100% { fill: #f97316; }
+}
+
+@keyframes ember-glow {
+  0% { opacity: 0.3; }
+  100% { opacity: 0.8; }
+}
+
+@keyframes smoke-drift {
+  0% { transform: translateY(0); opacity: 0.45; }
+  100% { transform: translateY(-2px); opacity: 0.85; }
 }
 
 .cigarette-period-breakdown {
@@ -2621,6 +2652,151 @@
   .health-outlook-details {
     grid-template-columns: 1fr;
     gap: 10px;
+  }
+}
+
+/* Popular cities quick chips */
+.city-quick-picks {
+  padding: 12px 14px 14px;
+}
+
+.city-quick-picks .city-results-heading {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5d7567;
+}
+
+.city-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.city-quick-chip {
+  padding: 6px 12px;
+  border: 1px solid #dbe6de;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #2e4a3a;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.city-quick-chip:hover {
+  border-color: #43835a;
+  background: #f2f7f4;
+  color: #1b3827;
+  transform: translateY(-1px);
+}
+
+.city-quick-chip.active {
+  border-color: #43835a;
+  background: #e6f2eb;
+  color: #204d33;
+}
+
+/* Hero Best Outdoor Window Callout */
+.hero-best-window-callout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 6px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  background: #edf6f0;
+  border: 1px solid #d0e7d7;
+  color: #265439;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.hero-best-window-callout strong {
+  color: #143d24;
+}
+
+.best-window-icon {
+  font-size: 10px;
+}
+
+/* Mobile Sticky AQI Pill */
+.mobile-sticky-pill {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .mobile-sticky-pill {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border-radius: 999px;
+    background: #ffffff;
+    border: 1px solid #d5e4da;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 14%), 0 2px 6px rgb(0 0 0 / 6%);
+    color: #243a2e;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    animation: sticky-pill-in 200ms ease;
+  }
+
+  .mobile-sticky-pill:active {
+    transform: translateX(-50%) scale(0.97);
+  }
+
+  .sticky-pill-city {
+    font-weight: 700;
+  }
+
+  .sticky-pill-sep {
+    color: #a4b5aa;
+  }
+
+  .sticky-pill-aqi {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .sticky-pill-aqi[data-category='good'] { color: #317b51; }
+  .sticky-pill-aqi[data-category='moderate'] { color: #8a7200; }
+  .sticky-pill-aqi[data-category='unhealthy-for-sensitive-groups'] { color: #a65c12; }
+  .sticky-pill-aqi[data-category='unhealthy'] { color: #ae423d; }
+  .sticky-pill-aqi[data-category='very-unhealthy'] { color: #784b91; }
+  .sticky-pill-aqi[data-category='hazardous'] { color: #803b65; }
+
+  .sticky-pill-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e8f2ec;
+    color: #2d5a3f;
+    font-size: 11px;
+    font-weight: 800;
+    margin-left: 2px;
+  }
+}
+
+@keyframes sticky-pill-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 

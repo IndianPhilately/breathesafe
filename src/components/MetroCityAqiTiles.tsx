@@ -123,12 +123,15 @@ export function MetroCityAqiTiles({
           const color =
             isSuccess ? aqiCategoryColor(state.category) : undefined
 
+          const isCurrentCity = city.city === currentCityName
+
           return (
             <button
               key={city.id}
-              className="metro-aqi-tile"
+              className={`metro-aqi-tile ${isCurrentCity ? 'active-city-tile' : ''}`}
               type="button"
               role="listitem"
+              aria-current={isCurrentCity ? 'true' : undefined}
               onClick={() => onCitySelect(city)}
               aria-label={
                 isSuccess

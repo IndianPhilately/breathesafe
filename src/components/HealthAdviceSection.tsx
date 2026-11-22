@@ -63,8 +63,21 @@ export function HealthAdviceSection({
             </div>
           </div>
           <div className="cigarette-graphic" aria-hidden="true">
-            <span className="cigarette-smoke">☁️</span>
-            <span className="cigarette-body">🚬</span>
+            <svg className="cigarette-svg" viewBox="0 0 80 24" fill="none">
+              <path
+                d="M8 14c-3-2-2-5 1-7M12 12c-2-2-1-4 1-6"
+                stroke="#8ba495"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                className="cigarette-smoke-wisp"
+              />
+              <rect x="18" y="7" width="5" height="10" rx="1.5" fill="#f97316" className="cigarette-ember" />
+              <circle cx="20.5" cy="12" r="3.5" fill="#fb923c" opacity="0.6" className="cigarette-glow" />
+              <rect x="23" y="7" width="38" height="10" rx="0" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.8" />
+              <rect x="61" y="7" width="16" height="10" rx="2" fill="#d97706" />
+              <line x1="64" y1="7" x2="64" y2="17" stroke="#b45309" strokeWidth="0.7" opacity="0.4" />
+              <line x1="68" y1="7" x2="68" y2="17" stroke="#b45309" strokeWidth="0.7" opacity="0.4" />
+            </svg>
           </div>
         </div>
 

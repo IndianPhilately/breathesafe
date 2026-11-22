@@ -33,12 +33,26 @@ import {
 import { AirQualityHistoryChart } from './components/AirQualityHistoryChart'
 import { MetroCityAqiTiles } from './components/MetroCityAqiTiles'
 import { HealthAdviceSection } from './components/HealthAdviceSection'
+import { getHealthSolutions } from './services/healthAdvice'
 import { fetchIpLocation } from './services/ipLocation'
 import { hasCityLandmark } from './data/metroCities'
 import './App.css'
 
 const populationFormatter = new Intl.NumberFormat('en-IN')
 const forecastWeekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const POPULAR_METRO_IDS = [
+  'delhi',
+  'mumbai',
+  'bengaluru',
+  'pune',
+  'hyderabad',
+  'kolkata',
+  'chennai',
+]
+const popularMetroCities = POPULAR_METRO_IDS.flatMap((id) => {
+  const city = cityDashboardData.find((item) => item.id === id)
+  return city ? [city] : []
+})
 
 type AirQualityPollutantKey = Exclude<
   keyof CurrentAirQuality,
@@ -221,15 +235,35 @@ function App() {
     }))
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([null, null])
   const locationRequestId = useRef(0)
+  const [showMobilePill, setShowMobilePill] = useState(false)
 
-  // Update document title for bookmarking
+  useEffect(() => {
+    function handleScroll() {
+      setShowMobilePill(window.scrollY > 360)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Update document title for bookmarking and Open Graph meta tags
   useEffect(() => {
     if (isResolvingInitialCity) {
       document.title = 'BreatheSafe · Live Air Quality & Weather in India'
     } else {
-      document.title = `${selectedCity.city} Air Quality & Weather · BreatheSafe`
+      const isCurrentAqiSuccess =
+        airQualityState.cityId === selectedCity.id &&
+        airQualityState.status === 'success'
+      const aqiText = isCurrentAqiSuccess
+        ? ` (${Math.round(airQualityState.airQuality.usAqi)} AQI)`
+        : ''
+      const pageTitle = `${selectedCity.city} Air Quality & Weather · BreatheSafe`
+      document.title = pageTitle
+      const metaOgTitle = document.querySelector('meta[property="og:title"]')
+      if (metaOgTitle) {
+        metaOgTitle.setAttribute('content', `${selectedCity.city}${aqiText} · BreatheSafe`)
+      }
     }
-  }, [isResolvingInitialCity, selectedCity.city])
+  }, [isResolvingInitialCity, selectedCity.city, selectedCity.id, airQualityState])
 
   const isInitialMount = useRef(true)
 
@@ -824,12 +858,10 @@ function App() {
                   locationRequestId.current += 1
                   setCitySearch(event.target.value)
                   setActiveCityIndex(-1)
-                  setIsCityListOpen(event.target.value.trim().length >= 3)
+                  setIsCityListOpen(true)
                   setLocationState({ status: 'idle', message: '' })
                 }}
-                onFocus={() =>
-                  setIsCityListOpen(hasMinimumSearchLength)
-                }
+                onFocus={() => setIsCityListOpen(true)}
                 onBlur={() => setIsCityListOpen(false)}
                 onKeyDown={handleCitySearchKeyDown}
               />
@@ -872,75 +904,96 @@ function App() {
             </div>
             <div
               className={
-                isCityListOpen && hasMinimumSearchLength
+                isCityListOpen && (hasMinimumSearchLength || citySearch.trim() === '')
                   ? 'city-results-panel open'
                   : 'city-results-panel'
               }
-              aria-hidden={!isCityListOpen || !hasMinimumSearchLength}
+              aria-hidden={!isCityListOpen || (!hasMinimumSearchLength && citySearch.trim() !== '')}
             >
-              <p className="city-results-heading">Suggestions</p>
-              <p className="city-results-subheading">
-                {cityDashboardData.length} cities · {CITY_POPULATION_YEAR}{' '}
-                population · {populationFormatter.format(CITY_POPULATION_MINIMUM)}+
-              </p>
-              <ul
-                className="city-results"
-                id="city-results"
-                role="listbox"
-                aria-label="Matching cities"
-              >
-                {matchingCities.length > 0 ? (
-                  matchingCities.map((city, index) => (
-                    <li
-                      className={
-                        index === activeCityIndex
-                          ? 'city-result active'
-                          : 'city-result'
-                      }
-                      id={`city-option-${city.id}`}
-                      key={city.id}
-                      role="option"
-                      aria-selected={city.id === selectedCity.id}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onMouseEnter={() => setActiveCityIndex(index)}
-                      onClick={() => selectCity(city)}
-                    >
-                      <span className="city-result-name">
-                        <span className="city-result-pin" aria-hidden="true">
-                          <svg viewBox="0 0 24 16" fill="none">
-                            <path fill="#FF9933" d="M1 1h22v4.67H1z" />
-                            <path fill="white" d="M1 5.67h22v4.66H1z" />
-                            <path fill="#138808" d="M1 10.33h22V15H1z" />
-                            <circle
-                              cx="12"
-                              cy="8"
-                              r="1.65"
-                              stroke="#1A4A9F"
-                              strokeWidth=".7"
-                            />
-                            <path
-                              d="M12 6.5v3M10.5 8h3"
-                              stroke="#1A4A9F"
-                              strokeWidth=".45"
-                            />
-                          </svg>
-                        </span>
-                        <span>
-                          {city.city}, {city.state}
-                        </span>
-                        <span className="city-result-population">
-                          {populationFormatter.format(city.population)}
-                          <small>{CITY_POPULATION_YEAR} population</small>
-                        </span>
-                      </span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="city-no-results" role="option" aria-disabled="true">
-                    No matching cities found.
-                  </li>
-                )}
-              </ul>
+              {hasMinimumSearchLength ? (
+                <>
+                  <p className="city-results-heading">Suggestions</p>
+                  <p className="city-results-subheading">
+                    {cityDashboardData.length} cities · {CITY_POPULATION_YEAR}{' '}
+                    population · {populationFormatter.format(CITY_POPULATION_MINIMUM)}+
+                  </p>
+                  <ul
+                    className="city-results"
+                    id="city-results"
+                    role="listbox"
+                    aria-label="Matching cities"
+                  >
+                    {matchingCities.length > 0 ? (
+                      matchingCities.map((city, index) => (
+                        <li
+                          className={
+                            index === activeCityIndex
+                              ? 'city-result active'
+                              : 'city-result'
+                          }
+                          id={`city-option-${city.id}`}
+                          key={city.id}
+                          role="option"
+                          aria-selected={city.id === selectedCity.id}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onMouseEnter={() => setActiveCityIndex(index)}
+                          onClick={() => selectCity(city)}
+                        >
+                          <span className="city-result-name">
+                            <span className="city-result-pin" aria-hidden="true">
+                              <svg viewBox="0 0 24 16" fill="none">
+                                <path fill="#FF9933" d="M1 1h22v4.67H1z" />
+                                <path fill="white" d="M1 5.67h22v4.66H1z" />
+                                <path fill="#138808" d="M1 10.33h22V15H1z" />
+                                <circle
+                                  cx="12"
+                                  cy="8"
+                                  r="1.65"
+                                  stroke="#1A4A9F"
+                                  strokeWidth=".7"
+                                />
+                                <path
+                                  d="M12 6.5v3M10.5 8h3"
+                                  stroke="#1A4A9F"
+                                  strokeWidth=".45"
+                                />
+                              </svg>
+                            </span>
+                            <span>
+                              {city.city}, {city.state}
+                            </span>
+                            <span className="city-result-population">
+                              {populationFormatter.format(city.population)}
+                              <small>{CITY_POPULATION_YEAR} population</small>
+                            </span>
+                          </span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="city-no-results" role="option" aria-disabled="true">
+                        No matching cities found.
+                      </li>
+                    )}
+                  </ul>
+                </>
+              ) : citySearch.trim() === '' ? (
+                <div className="city-quick-picks">
+                  <p className="city-results-heading">Popular cities</p>
+                  <div className="city-quick-chips">
+                    {popularMetroCities.map((metro) => (
+                      <button
+                        key={metro.id}
+                        type="button"
+                        className={`city-quick-chip ${metro.id === selectedCity.id ? 'active' : ''}`}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectCity(metro)}
+                      >
+                        {metro.city}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
           <p
@@ -1216,6 +1269,20 @@ function App() {
                       {Math.round(selectedAirQualityState.airQuality.usAqi)}
                     </p>
                     <p className="aqi-category">{aqiCategory}</p>
+                    <div className="hero-best-window-callout">
+                      <span className="best-window-icon" aria-hidden="true">🟢</span>
+                      <span>
+                        Best outdoor window:{' '}
+                        <strong>
+                          {
+                            getHealthSolutions(
+                              selectedAirQualityState.airQuality.usAqi,
+                              selectedAirQualityState.airQuality.pm25,
+                            ).outlook.bestTimeWindow
+                          }
+                        </strong>
+                      </span>
+                    </div>
                     <p className="city-caption">United States AQI scale</p>
                     <p className="observation-time aqi-model-time">
                       Model time{' '}
@@ -1855,6 +1922,25 @@ function App() {
           </a>
           .
         </p>
+
+        {showMobilePill && selectedAirQualityState?.status === 'success' && (
+          <button
+            type="button"
+            className="mobile-sticky-pill"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label={`Scroll to top of dashboard for ${selectedCity.city}`}
+          >
+            <span className="sticky-pill-city">{selectedCity.city}</span>
+            <span className="sticky-pill-sep" aria-hidden="true">·</span>
+            <span
+              className="sticky-pill-aqi"
+              data-category={aqiIllustration ?? ''}
+            >
+              {Math.round(selectedAirQualityState.airQuality.usAqi)} {aqiCategory}
+            </span>
+            <span className="sticky-pill-arrow" aria-hidden="true">↑</span>
+          </button>
+        )}
       </main>
       <footer className="page-footer">
         <span>Made for a breath of clarity</span>
