@@ -34,7 +34,7 @@ export async function fetchAirQualityHistory(
     longitude: String(longitude),
     hourly: 'us_aqi,pm2_5,pm10',
     past_days: '92',
-    forecast_days: '0',
+    forecast_days: '1',
     timezone: LOCAL_TIME_ZONE,
   }).toString()
 

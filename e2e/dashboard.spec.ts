@@ -429,7 +429,7 @@ test('opens the Air quality tab by default and loads selected-city data', async 
       longitude: '77.1025',
       hourly: 'us_aqi,pm2_5,pm10',
       past_days: '92',
-      forecast_days: '0',
+      forecast_days: '1',
       timezone: 'Asia/Kolkata',
     },
     {
@@ -437,7 +437,7 @@ test('opens the Air quality tab by default and loads selected-city data', async 
       longitude: '73.8567',
       hourly: 'us_aqi,pm2_5,pm10',
       past_days: '92',
-      forecast_days: '0',
+      forecast_days: '1',
       timezone: 'Asia/Kolkata',
     },
   ])
